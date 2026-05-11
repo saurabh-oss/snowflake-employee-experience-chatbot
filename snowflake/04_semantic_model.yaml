@@ -1,0 +1,352 @@
+# ============================================================================
+# SEMANTIC MODEL — EX Chatbot Cortex Analyst
+# Upload to: @EX_CHATBOT.PUBLIC.SEMANTIC_MODELS/04_semantic_model.yaml
+# ============================================================================
+
+name: EX_Chatbot_Employee_Model
+description: >
+  Semantic model for the Employee Experience chatbot.
+  Covers employee directory, leave balances, IT tickets, and attrition analytics.
+
+tables:
+
+  # ── Employee Directory ────────────────────────────────────────────────────
+  - name: employees
+    description: >
+      Core employee master table. One row per employee with personal details,
+      org assignment, compensation, and employment status.
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: EMPLOYEES
+
+    primary_key:
+      columns:
+        - EMP_ID
+
+    dimensions:
+      - name: EMP_ID
+        description: Unique employee identifier (e.g., EMP-4821)
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: FULL_NAME
+        description: Employee's full legal name
+        expr: FULL_NAME
+        data_type: TEXT
+
+      - name: EMAIL
+        description: Corporate email address (may be masked for non-admin roles)
+        expr: EMAIL
+        data_type: TEXT
+
+      - name: DEPARTMENT
+        description: Top-level department
+        expr: DEPARTMENT
+        data_type: TEXT
+        sample_values:
+          - Engineering
+          - Human Resources
+          - IT
+
+      - name: TEAM
+        description: Sub-team within the department
+        expr: TEAM
+        data_type: TEXT
+        sample_values:
+          - Platform
+          - Data
+          - Service Desk
+
+      - name: JOB_TITLE
+        description: Current job title
+        expr: JOB_TITLE
+        data_type: TEXT
+
+      - name: MANAGER_ID
+        description: EMP_ID of the employee's direct manager
+        expr: MANAGER_ID
+        data_type: TEXT
+
+      - name: LOCATION
+        description: Office location / city
+        expr: LOCATION
+        data_type: TEXT
+
+      - name: REGION
+        description: Geographic region
+        expr: REGION
+        data_type: TEXT
+        sample_values:
+          - AMER
+          - EMEA
+          - APAC
+
+      - name: EMPLOYMENT_TYPE
+        description: Employment classification
+        expr: EMPLOYMENT_TYPE
+        data_type: TEXT
+        sample_values:
+          - Full-Time
+          - Part-Time
+          - Contractor
+
+      - name: STATUS
+        description: Employment status
+        expr: STATUS
+        data_type: TEXT
+        sample_values:
+          - Active
+          - Inactive
+          - On Leave
+
+      - name: CURRENCY
+        description: ISO currency code for salary
+        expr: CURRENCY
+        data_type: TEXT
+
+    time_dimensions:
+      - name: HIRE_DATE
+        description: Date the employee joined the company
+        expr: HIRE_DATE
+        data_type: date
+
+    measures:
+      - name: SALARY
+        description: >
+          Annual base salary in local currency.
+          RESTRICTED — masked for non-admin roles.
+        expr: SALARY
+        data_type: NUMBER
+        default_aggregation: avg
+
+  # ── Leave Balances ────────────────────────────────────────────────────────
+  - name: employee_leave
+    description: >
+      Leave balances by employee, fiscal year, and leave type.
+      BALANCE is computed as (TOTAL_ENTITLED - TAKEN - PRE_APPROVED).
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: EMPLOYEE_LEAVE
+
+    dimensions:
+      - name: EMP_ID
+        description: Employee ID (join to employees)
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: FISCAL_YEAR
+        description: Fiscal year (e.g., 2026)
+        expr: FISCAL_YEAR
+        data_type: NUMBER
+        sample_values:
+          - 2025
+          - 2026
+
+      - name: LEAVE_TYPE
+        description: Type of leave
+        expr: LEAVE_TYPE
+        data_type: TEXT
+        sample_values:
+          - Annual Leave
+          - Sick Leave
+          - Bereavement Leave
+
+    measures:
+      - name: TOTAL_ENTITLED
+        description: Total leave days entitled for this type and year
+        expr: TOTAL_ENTITLED
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: TAKEN
+        description: Leave days already taken
+        expr: TAKEN
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: PRE_APPROVED
+        description: Leave days approved but not yet taken
+        expr: PRE_APPROVED
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: BALANCE
+        description: Remaining available leave days (entitled minus taken minus pre-approved)
+        expr: BALANCE
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: CARRY_FORWARD
+        description: Leave days carried forward from the previous year
+        expr: CARRY_FORWARD
+        data_type: NUMBER
+        default_aggregation: sum
+
+  # ── Attrition Analytics ───────────────────────────────────────────────────
+  - name: attrition_fact
+    description: >
+      Quarterly attrition metrics by department, team, and manager.
+      Used for manager-level analytics on team health.
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: ATTRITION_FACT
+
+    dimensions:
+      - name: PERIOD
+        description: Fiscal quarter (e.g., Q1 FY26)
+        expr: PERIOD
+        data_type: TEXT
+
+      - name: DEPARTMENT
+        description: Department name
+        expr: DEPARTMENT
+        data_type: TEXT
+
+      - name: TEAM
+        description: Team name
+        expr: TEAM
+        data_type: TEXT
+
+      - name: MANAGER_ID
+        description: Manager's employee ID
+        expr: MANAGER_ID
+        data_type: TEXT
+
+      - name: TOP_EXIT_REASON
+        description: Most common reason for exits in this period
+        expr: TOP_EXIT_REASON
+        data_type: TEXT
+
+    measures:
+      - name: HEADCOUNT_START
+        description: Headcount at the start of the quarter
+        expr: HEADCOUNT_START
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: EXITS
+        description: Number of exits during the quarter
+        expr: EXITS
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: ATTRITION_RATE
+        description: Attrition percentage (exits / headcount_start * 100)
+        expr: ATTRITION_RATE
+        data_type: NUMBER
+        default_aggregation: avg
+
+  # ── IT Tickets ────────────────────────────────────────────────────────────
+  - name: it_tickets
+    description: >
+      IT service desk tickets. Tracks category, priority, status, and resolution.
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: IT_TICKETS
+
+    primary_key:
+      columns:
+        - TICKET_ID
+
+    dimensions:
+      - name: TICKET_ID
+        description: Unique ticket identifier (e.g., INC-78432)
+        expr: TICKET_ID
+        data_type: TEXT
+
+      - name: EMP_ID
+        description: Requesting employee ID
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: CATEGORY
+        description: Top-level category
+        expr: CATEGORY
+        data_type: TEXT
+        sample_values:
+          - Software
+          - Network
+          - Access
+          - Hardware
+
+      - name: SUBCATEGORY
+        description: Subcategory (e.g., VPN, Permissions)
+        expr: SUBCATEGORY
+        data_type: TEXT
+
+      - name: PRIORITY
+        description: Priority level
+        expr: PRIORITY
+        data_type: TEXT
+        sample_values:
+          - P1
+          - P2
+          - P3
+          - P4
+
+      - name: STATUS
+        description: Current ticket status
+        expr: STATUS
+        data_type: TEXT
+        sample_values:
+          - Open
+          - In Progress
+          - Resolved
+          - Closed
+
+      - name: ASSIGNED_GROUP
+        description: IT team assigned to resolve the ticket
+        expr: ASSIGNED_GROUP
+        data_type: TEXT
+
+    time_dimensions:
+      - name: CREATED_AT
+        description: Ticket creation timestamp
+        expr: CREATED_AT
+        data_type: timestamp
+
+      - name: RESOLVED_AT
+        description: Resolution timestamp (null if still open)
+        expr: RESOLVED_AT
+        data_type: timestamp
+
+# ── Relationships ─────────────────────────────────────────────────────────────
+relationships:
+  - name: leave_to_employees
+    left_table: employee_leave
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
+  - name: tickets_to_employees
+    left_table: it_tickets
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
+  - name: attrition_to_manager
+    left_table: attrition_fact
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: MANAGER_ID
+        right_column: EMP_ID
+
+# ── Model-level instructions for the SQL generator ────────────────────────────
+custom_instructions: |
+  When generating SQL:
+  - Always filter by the requesting user's EMP_ID when the question is about
+    "my" data (my leave, my tickets, my assets).
+  - For manager queries ("my team"), filter attrition_fact or employees by MANAGER_ID.
+  - Never expose SALARY unless explicitly confirmed the role is EX_CHATBOT_ADMIN.
+  - Format dates as human-readable strings.
+  - Round percentages to one decimal place.
+  - Current fiscal year is 2026.
