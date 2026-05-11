@@ -97,13 +97,13 @@ INSERT INTO EMPLOYEES VALUES
 ('EMP-7789','Tom Watson','tom.watson@company.com','IT','Service Desk','IT Support Analyst','EMP-0300','London','EMEA','2021-07-10','Full-Time',52000,'GBP','Active'),
 ('EMP-8890','Nina Patel','nina.patel@company.com','Engineering','Platform','QA Engineer','EMP-1001','Bangalore','APAC','2023-04-01','Full-Time',2900000,'INR','Active');
 
-INSERT INTO EMPLOYEE_LEAVE VALUES
-('EMP-4821',2026,'Annual Leave',20,8,3,NULL,5,CURRENT_TIMESTAMP()),
-('EMP-4821',2026,'Sick Leave',10,2,0,NULL,0,CURRENT_TIMESTAMP()),
-('EMP-3302',2026,'Annual Leave',24,6,0,NULL,0,CURRENT_TIMESTAMP()),
-('EMP-5510',2026,'Annual Leave',25,10,2,NULL,3,CURRENT_TIMESTAMP()),
-('EMP-1001',2026,'Annual Leave',20,5,0,NULL,5,CURRENT_TIMESTAMP()),
-('EMP-2201',2026,'Annual Leave',25,12,0,NULL,0,CURRENT_TIMESTAMP());
+INSERT INTO EMPLOYEE_LEAVE (EMP_ID, FISCAL_YEAR, LEAVE_TYPE, TOTAL_ENTITLED, TAKEN, PRE_APPROVED, CARRY_FORWARD, UPDATED_AT) VALUES
+('EMP-4821',2026,'Annual Leave',20,8,3,5,CURRENT_TIMESTAMP()),
+('EMP-4821',2026,'Sick Leave',10,2,0,0,CURRENT_TIMESTAMP()),
+('EMP-3302',2026,'Annual Leave',24,6,0,0,CURRENT_TIMESTAMP()),
+('EMP-5510',2026,'Annual Leave',25,10,2,3,CURRENT_TIMESTAMP()),
+('EMP-1001',2026,'Annual Leave',20,5,0,5,CURRENT_TIMESTAMP()),
+('EMP-2201',2026,'Annual Leave',25,12,0,0,CURRENT_TIMESTAMP());
 
 INSERT INTO IT_ASSETS VALUES
 ('ASSET-10421','EMP-4821','Laptop','MacBook Pro 16" M4 Max','C02ZX1234567','2024-01-15','Active'),
@@ -115,11 +115,11 @@ INSERT INTO IT_TICKETS VALUES
 ('INC-78431','EMP-3302','Access','Permissions','P4','Need access to prod-analytics Snowflake role','Open','IAM Team','2026-04-10 06:30:00',NULL),
 ('INC-78432','EMP-4821','Network','VPN','P3','VPN disconnects every ~10 min','Open','Network Ops','2026-05-11 10:15:00',NULL);
 
-INSERT INTO ATTRITION_FACT VALUES
-('Q1 FY26','Engineering','Platform','EMP-1001',42,2,NULL,'Better compensation'),
-('Q2 FY26','Engineering','Platform','EMP-1001',44,1,NULL,'Relocation'),
-('Q3 FY26','Engineering','Platform','EMP-1001',43,3,NULL,'Compensation (market correction)'),
-('Q4 FY26','Engineering','Platform','EMP-1001',41,0,NULL,NULL);
+INSERT INTO ATTRITION_FACT (PERIOD, DEPARTMENT, TEAM, MANAGER_ID, HEADCOUNT_START, EXITS, TOP_EXIT_REASON) VALUES
+('Q1 FY26','Engineering','Platform','EMP-1001',42,2,'Better compensation'),
+('Q2 FY26','Engineering','Platform','EMP-1001',44,1,'Relocation'),
+('Q3 FY26','Engineering','Platform','EMP-1001',43,3,'Compensation (market correction)'),
+('Q4 FY26','Engineering','Platform','EMP-1001',41,0,NULL);
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- MASKING POLICIES (salary hidden from non-admin roles)

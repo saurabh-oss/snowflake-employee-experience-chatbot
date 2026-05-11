@@ -6,22 +6,26 @@
 
 USE ROLE EX_CHATBOT_ADMIN;
 USE DATABASE EX_CHATBOT;
-USE SCHEMA AGENT_CONFIG;
 USE WAREHOUSE EX_CHATBOT_WH;
 
--- ── 1. Upload semantic model to stage ────────────────────────────────────
+-- ── 1. Stage for semantic model (created in PUBLIC for Cortex Analyst REST API access) ──
+USE SCHEMA PUBLIC;
+
 CREATE STAGE IF NOT EXISTS SEMANTIC_MODELS
   DIRECTORY = (ENABLE = TRUE)
   COMMENT = 'Semantic model YAML files for Cortex Analyst';
 
--- Upload the YAML file:
--- PUT file://./04_semantic_model.yaml @SEMANTIC_MODELS AUTO_COMPRESS=FALSE;
+-- Upload the YAML via Snowsight: Data → Databases → EX_CHATBOT → PUBLIC → Stages → SEMANTIC_MODELS → + Files
+-- Or via SnowSQL:
+-- PUT file://./04_semantic_model.yaml @EX_CHATBOT.PUBLIC.SEMANTIC_MODELS AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+USE SCHEMA AGENT_CONFIG;
 
 -- ── 2. Test Cortex Analyst standalone ────────────────────────────────────
 -- Quick validation query (run interactively in Snowsight):
 /*
 SELECT SNOWFLAKE.CORTEX.COMPLETE(
-  'claude-sonnet-4-20250514',
+  'llama3.1-70b',
   'How many annual leave days does employee EMP-4821 have remaining in FY26?'
 ) AS test_response;
 */
@@ -56,7 +60,8 @@ CREATE OR REPLACE TABLE AGENT_DEFINITIONS (
     CREATED_AT      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
 
-INSERT INTO AGENT_DEFINITIONS VALUES (
+INSERT INTO AGENT_DEFINITIONS
+SELECT
   'ex-chatbot-v1',
   'Ask EX — Employee Experience Agent',
   'Multi-tool agent combining Cortex Search, Cortex Analyst, and external MCP connectors for employee self-service.',
@@ -71,7 +76,7 @@ INSERT INTO AGENT_DEFINITIONS VALUES (
     {
       "type": "cortex_analyst",
       "name": "employee_analyst",
-      "semantic_model_stage": "@EX_CHATBOT.AGENT_CONFIG.SEMANTIC_MODELS/04_semantic_model.yaml",
+      "semantic_model_stage": "@EX_CHATBOT.PUBLIC.SEMANTIC_MODELS/04_semantic_model.yaml",
       "description": "Generate SQL to query employee data — leave, headcount, attrition, tickets."
     }
   ]'),
@@ -87,8 +92,7 @@ RULES:
 7. For actions (raise ticket, apply leave), confirm before executing.
 8. Keep responses concise but complete. Use bullet points for lists.
 9. Be warm, professional, and proactive — suggest related follow-ups.',
-  CURRENT_TIMESTAMP()
-);
+  CURRENT_TIMESTAMP();
 
 -- ── 5. Audit log table ───────────────────────────────────────────────────
 USE SCHEMA AUDIT;
