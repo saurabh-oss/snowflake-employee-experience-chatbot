@@ -1,0 +1,101 @@
+<svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Define styles -->
+  <defs>
+    <style>
+      .box { fill: #1a1a1a; stroke: #0066cc; stroke-width: 2; }
+      .box-title { fill: #00d4ff; font-weight: bold; font-size: 14px; }
+      .box-text { fill: #d4d4d4; font-size: 12px; }
+      .arrow { stroke: #0066cc; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-label { fill: #b0b0b0; font-size: 11px; }
+      .header { fill: #00d4ff; font-size: 18px; font-weight: bold; }
+      .subheader { fill: #8888ff; font-size: 12px; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#0066cc" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="25" text-anchor="middle" class="header">Employee Experience Chatbot Data Flow</text>
+
+  <!-- Layer 1: Frontend -->
+  <rect x="50" y="60" width="200" height="80" class="box" rx="8"/>
+  <text x="150" y="80" text-anchor="middle" class="box-title">React Chat UI</text>
+  <text x="150" y="100" text-anchor="middle" class="box-text">Desktop & Mobile</text>
+  <text x="150" y="115" text-anchor="middle" class="box-text">WebSocket Streaming</text>
+
+  <!-- Layer 2: Backend -->
+  <rect x="350" y="60" width="200" height="80" class="box" rx="8"/>
+  <text x="450" y="80" text-anchor="middle" class="box-title">FastAPI Backend</text>
+  <text x="450" y="100" text-anchor="middle" class="box-text">RSA Authentication</text>
+  <text x="450" y="115" text-anchor="middle" class="box-text">Request Routing</text>
+
+  <!-- Layer 3: Snowflake Cortex -->
+  <rect x="650" y="60" width="300" height="80" class="box" rx="8"/>
+  <text x="800" y="80" text-anchor="middle" class="box-title">Snowflake Cortex</text>
+  <text x="800" y="100" text-anchor="middle" class="box-text">Search • Analyst • Complete</text>
+  <text x="800" y="115" text-anchor="middle" class="box-text">Horizon Governance</text>
+
+  <!-- Arrows Layer 1-2 -->
+  <path d="M 250 100 L 350 100" class="arrow"/>
+  <text x="295" y="95" text-anchor="middle" class="arrow-label">HTTPS</text>
+
+  <!-- Arrows Layer 2-3 -->
+  <path d="M 550 100 L 650 100" class="arrow"/>
+  <text x="595" y="95" text-anchor="middle" class="arrow-label">Snowflake Connector</text>
+
+  <!-- Cortex Services -->
+  <rect x="670" y="180" width="90" height="70" class="box" rx="6"/>
+  <text x="715" y="198" text-anchor="middle" class="box-title">Search</text>
+  <text x="715" y="218" text-anchor="middle" class="box-text">Find policies</text>
+  <text x="715" y="232" text-anchor="middle" class="box-text">& docs</text>
+
+  <rect x="780" y="180" width="90" height="70" class="box" rx="6"/>
+  <text x="825" y="198" text-anchor="middle" class="box-title">Analyst</text>
+  <text x="825" y="218" text-anchor="middle" class="box-text">NL to SQL</text>
+  <text x="825" y="232" text-anchor="middle" class="box-text">translation</text>
+
+  <rect x="890" y="180" width="90" height="70" class="box" rx="6"/>
+  <text x="935" y="198" text-anchor="middle" class="box-title">Complete</text>
+  <text x="935" y="218" text-anchor="middle" class="box-text">LLM synthesis</text>
+  <text x="935" y="232" text-anchor="middle" class="box-text">+ citations</text>
+
+  <!-- Data Storage -->
+  <rect x="670" y="280" width="310" height="70" class="box" rx="6"/>
+  <text x="825" y="300" text-anchor="middle" class="box-title">Snowflake Data</text>
+  <text x="825" y="320" text-anchor="middle" class="box-text">Employees • Policies • Audit Logs</text>
+  <text x="825" y="335" text-anchor="middle" class="box-text">RBAC • Column Masking • Row Policies</text>
+
+  <!-- Governance -->
+  <rect x="50" y="280" width="300" height="70" class="box" rx="6" style="stroke: #00c853; fill: #0a2015;"/>
+  <text x="200" y="300" text-anchor="middle" class="box-title" style="fill: #00c853;">Security & Governance</text>
+  <text x="200" y="320" text-anchor="middle" class="box-text">RSA Auth • Row/Col Masking</text>
+  <text x="200" y="335" text-anchor="middle" class="box-text">Immutable Audit Logs</text>
+
+  <!-- Process Flow -->
+  <text x="50" y="390" class="header">Request Flow</text>
+
+  <circle cx="80" cy="430" r="20" fill="#0066cc"/>
+  <text x="80" y="436" text-anchor="middle" style="fill: white; font-weight: bold; font-size: 12px;">1</text>
+  <text x="130" y="435" class="box-text">User asks question</text>
+
+  <circle cx="280" cy="430" r="20" fill="#0066cc"/>
+  <text x="280" y="436" text-anchor="middle" style="fill: white; font-weight: bold; font-size: 12px;">2</text>
+  <text x="320" y="435" class="box-text">Backend routes to Cortex</text>
+
+  <circle cx="580" cy="430" r="20" fill="#0066cc"/>
+  <text x="580" y="436" text-anchor="middle" style="fill: white; font-weight: bold; font-size: 12px;">3</text>
+  <text x="620" y="435" class="box-text">Cortex queries data & LLM</text>
+
+  <circle cx="800" cy="430" r="20" fill="#0066cc"/>
+  <text x="800" y="436" text-anchor="middle" style="fill: white; font-weight: bold; font-size: 12px;">4</text>
+  <text x="840" y="435" class="box-text">Response streamed back</text>
+
+  <!-- Connecting arrows for process -->
+  <path d="M 100 430 L 260 430" class="arrow"/>
+  <path d="M 300 430 L 560 430" class="arrow"/>
+  <path d="M 600 430 L 780 430" class="arrow"/>
+
+  <!-- Bottom note -->
+  <text x="500" y="475" text-anchor="middle" class="subheader">✓ All computation happens inside Snowflake • No data egress • Full audit trail</text>
+</svg>

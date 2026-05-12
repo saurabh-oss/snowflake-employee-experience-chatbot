@@ -9,6 +9,10 @@
 > **Built on Snowflake Cortex AI**
 > A proof-of-concept employee experience chatbot that keeps all data, inference, and governance inside the Snowflake perimeter. Employees ask natural-language questions about leave, policies, IT tickets, and team analytics — and receive grounded, cited answers.
 
+**📚 [Read the Documentation →](https://saurabh-oss.github.io/snowflake-employee-experience-chatbot/)**
+
+Explore the full guide, architecture, security model, and use cases on our GitHub Pages documentation site.
+
 ---
 
 ## What This PoC Demonstrates
