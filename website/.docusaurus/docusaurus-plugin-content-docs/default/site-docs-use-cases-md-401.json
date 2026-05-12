@@ -1,0 +1,27 @@
+{
+  "id": "use-cases",
+  "title": "💡 Use Cases",
+  "description": "Real Scenarios Powered by the Chatbot",
+  "source": "@site/docs/use-cases.md",
+  "sourceDirName": ".",
+  "slug": "/use-cases",
+  "permalink": "/snowflake-employee-experience-chatbot/use-cases",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/tree/main/website/docs/use-cases.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "📈 Why This Project?",
+    "permalink": "/snowflake-employee-experience-chatbot/why-this-project"
+  },
+  "next": {
+    "title": "🏆 Why Snowflake Cortex?",
+    "permalink": "/snowflake-employee-experience-chatbot/comparison"
+  }
+}

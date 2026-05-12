@@ -1,0 +1,27 @@
+{
+  "id": "why-this-project",
+  "title": "📈 Why This Project?",
+  "description": "The Business Case for Secure Employee Intelligence",
+  "source": "@site/docs/why-this-project.md",
+  "sourceDirName": ".",
+  "slug": "/why-this-project",
+  "permalink": "/snowflake-employee-experience-chatbot/why-this-project",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/tree/main/website/docs/why-this-project.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "👥 Employee Experience Chatbot",
+    "permalink": "/snowflake-employee-experience-chatbot/intro"
+  },
+  "next": {
+    "title": "💡 Use Cases",
+    "permalink": "/snowflake-employee-experience-chatbot/use-cases"
+  }
+}

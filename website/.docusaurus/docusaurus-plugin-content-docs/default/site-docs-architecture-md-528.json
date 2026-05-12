@@ -1,0 +1,27 @@
+{
+  "id": "architecture",
+  "title": "🏗️ Architecture",
+  "description": "How the Employee Experience Chatbot Works",
+  "source": "@site/docs/architecture.md",
+  "sourceDirName": ".",
+  "slug": "/architecture",
+  "permalink": "/snowflake-employee-experience-chatbot/architecture",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/tree/main/website/docs/architecture.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "🏆 Why Snowflake Cortex?",
+    "permalink": "/snowflake-employee-experience-chatbot/comparison"
+  },
+  "next": {
+    "title": "🔐 Security & Governance",
+    "permalink": "/snowflake-employee-experience-chatbot/security-governance"
+  }
+}
