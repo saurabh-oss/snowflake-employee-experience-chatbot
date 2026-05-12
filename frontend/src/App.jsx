@@ -8,41 +8,44 @@ const API_URL = process.env.REACT_APP_API_URL || null;
 const DEMO_CONVERSATIONS = [
   {
     id: "leave",
-    user: "How many leave days do I have left this year?",
+    user: "How many leave days do I have remaining this year?",
     bot: {
-      text: "You have **12 days** of annual leave remaining for FY26. Here's a quick breakdown:\n\n• **Taken:** 8 days\n• **Pre-approved:** 3 days (May 19–21)\n• **Available:** 12 days\n\nYour carry-forward limit is 5 days — I'd recommend planning your remaining leave before September 30.",
-      sources: [{ type: "analyst", label: "Cortex Analyst → SQL", detail: "SELECT leave_balance FROM hr.employee_leave WHERE emp_id = 'EMP-4821' AND fiscal_year = 2026" }],
-      chips: ["Apply for leave", "Team leave calendar", "Carry-forward policy"]
+      text: "Here's your leave balance for **FY2026**:\n\n| Leave Type | Entitled | Taken | Pre-Approved | **Balance** |\n|------------|----------|-------|--------------|-------------|\n| Annual Leave | 20 | 8 | 3 | **9 days** |\n| Sick Leave | 10 | 2 | 0 | **8 days** |\n| Bereavement Leave | 3 | 0 | 0 | **3 days** |\n\nYou have **9 annual leave days** available. Note: your carry-forward of 5 days was included in your entitlement. The carry-forward deadline is December 31, 2026.",
+      sources: [{ type: "analyst", label: "Cortex Analyst → EMPLOYEE_LEAVE", detail: "SELECT LEAVE_TYPE, TOTAL_ENTITLED, TAKEN, PRE_APPROVED, BALANCE FROM HR_DATA.EMPLOYEE_LEAVE WHERE EMP_ID = 'EMP-4821' AND FISCAL_YEAR = 2026" }],
+      chips: ["Apply for leave", "Parental leave policy", "Carry-forward rules"]
     }
   },
   {
-    id: "policy",
-    user: "What's the policy on working from another country?",
+    id: "review",
+    user: "What is the status of my performance review for H1 FY26?",
     bot: {
-      text: "You can work remotely from an **approved country for up to 30 calendar days per year**, subject to:\n\n1. **Manager approval** via the Remote Work Request form\n2. **Tax desk pre-clearance** (mandatory for stays > 14 days)\n3. The country must be on the **approved list** — currently 28 countries\n\nNote: Social security implications apply in EU countries after Day 1. Contact the Global Mobility team before booking travel.",
-      sources: [
-        { type: "search", label: "Cortex Search → Policy", detail: "Global Mobility Policy v4.2 §3.1 — Remote Work from Abroad (Updated Jan 2026)" },
-        { type: "search", label: "Cortex Search → FAQ", detail: "HR Knowledge Base: International Remote Work FAQ #IW-2241" }
-      ],
-      chips: ["Approved country list", "Remote work form", "Contact Global Mobility"]
+      text: "Your **H1 FY26 Mid-Year Review** is currently in **Manager Review** stage.\n\n• **Review cycle:** H1 FY26 (Mid-Year)\n• **Status:** Manager Review — your self-assessment has been submitted\n• **Self-rating submitted:** 4.0 / 5.0\n• **Due date:** June 30, 2026\n• **Reviewer:** Alex Chen\n\nYour last **Annual FY25** review is complete — final rating was **4.5 (Exceeds Expectations)**, with 4 of 5 goals met. Great work!",
+      sources: [{ type: "analyst", label: "Cortex Analyst → PERFORMANCE_REVIEWS", detail: "SELECT REVIEW_CYCLE, STATUS, SELF_RATING, FINAL_RATING, RATING_LABEL, DUE_DATE FROM HR_DATA.PERFORMANCE_REVIEWS WHERE EMP_ID = 'EMP-4821' ORDER BY DUE_DATE DESC" }],
+      chips: ["View review guidelines", "Performance policy", "Set H2 goals"]
     }
   },
   {
     id: "ticket",
-    user: "My VPN keeps disconnecting every 10 minutes. Can you raise a ticket?",
+    user: "My VPN keeps disconnecting every 10 minutes. Please raise a ticket.",
     bot: {
-      text: "I've created **IT ticket INC-78432** for your VPN issue. Here's what I've submitted:\n\n• **Category:** Network / VPN\n• **Priority:** P3 — Medium\n• **Summary:** Intermittent VPN disconnection every ~10 min\n• **Assigned to:** Network Operations (Tier 2)\n\nYou'll receive a confirmation email shortly. Average resolution for VPN issues is **4.2 hours**. Want me to also check if there's a known outage?",
-      sources: [{ type: "action", label: "MCP → ServiceNow", detail: "Created INC-78432 via ServiceNow REST API — assigned to Network Ops queue" }],
-      chips: ["Check VPN status page", "Escalate to P2", "Similar past tickets"]
+      text: "Done — I've created an IT ticket for your VPN issue:\n\n• **Ticket ID:** INC-91847\n• **Category:** Network / VPN\n• **Priority:** P3 — Medium\n• **Summary:** VPN disconnecting intermittently every ~10 minutes\n• **Assigned to:** Network Operations\n• **Status:** Open\n\nYou'll receive a confirmation shortly. For urgent issues, escalate to P2 by replying to the ticket email or asking me to update the priority.",
+      sources: [
+        { type: "action", label: "Action → IT_TICKETS (INSERT)", detail: "INSERT INTO HR_DATA.IT_TICKETS (TICKET_ID, EMP_ID, CATEGORY, SUBCATEGORY, PRIORITY, SUMMARY, STATUS, ASSIGNED_GROUP) VALUES ('INC-91847', 'EMP-4821', 'Network', 'VPN', 'P3', ...)" },
+        { type: "search", label: "Cortex Search → IT Acceptable Use Policy v3.0", detail: "§4.2 VPN and Remote Access — all remote connections must use the corporate VPN client" }
+      ],
+      chips: ["Escalate to P2", "Check ticket status", "VPN troubleshooting guide"]
     }
   },
   {
-    id: "analytics",
-    user: "Show me attrition trends for my team over the last 4 quarters",
+    id: "budget",
+    user: "How much of my L&D budget have I used this year?",
     bot: {
-      text: "Here's your team's attrition summary (Engineering — Platform):\n\n| Quarter | Headcount | Exits | Rate |\n|---------|-----------|-------|------|\n| Q1 FY26 | 42 | 2 | 4.8% |\n| Q2 FY26 | 44 | 1 | 2.3% |\n| Q3 FY26 | 43 | 3 | 7.0% |\n| Q4 FY26 | 41 | 0 | 0.0% |\n\nYour trailing-12-month rate is **14.1%** vs org average of **11.2%**. The Q3 spike correlates with a market salary correction — 2 of 3 exits cited compensation. Your current quarter looks strong.",
-      sources: [{ type: "analyst", label: "Cortex Analyst → SQL", detail: "Aggregated from hr.attrition_fact joined with hr.org_hierarchy WHERE manager_id = 'EMP-4821'" }],
-      chips: ["Exit interview themes", "Comp benchmark", "Retention risk scores"]
+      text: "Here's your **Learning & Development budget** for FY2026:\n\n| | Amount |\n|---|---|\n| **Annual Budget** | $3,000 |\n| **Used** | $974 |\n| **Committed** | $1,799 (AWS re:Invent — Dec) |\n| **Remaining** | **$227** |\n\nYou've completed **SnowPro Core Certification** ($375) and **Crucial Conversations Workshop** ($599). Your upcoming AWS re:Invent is approved.\n\n⚠️ You have only **$227 left** this year — plan accordingly before booking anything new.",
+      sources: [
+        { type: "analyst", label: "Cortex Analyst → LEARNING_BUDGET", detail: "SELECT ANNUAL_BUDGET, USED, COMMITTED, REMAINING FROM HR_DATA.LEARNING_BUDGET WHERE EMP_ID = 'EMP-4821' AND FISCAL_YEAR = 2026" },
+        { type: "analyst", label: "Cortex Analyst → LEARNING_DEVELOPMENT", detail: "SELECT COURSE_NAME, STATUS, COST FROM HR_DATA.LEARNING_DEVELOPMENT WHERE EMP_ID = 'EMP-4821' AND FISCAL_YEAR = 2026" }
+      ],
+      chips: ["L&D policy", "Submit expense for course", "Browse LinkedIn Learning"]
     }
   }
 ];
@@ -362,12 +365,12 @@ function TypingIndicator() {
 // ─── Sidebar ───
 function Sidebar({ open, onClose, onSelectConvo, onTopicSelect }) {
   const quickTopics = [
-    { emoji: "🏖", label: "Leave & Time Off",    question: "How many leave days do I have remaining this year?" },
-    { emoji: "📋", label: "Company Policies",    question: "What's the policy on working from another country?" },
-    { emoji: "🔧", label: "IT Support",          question: "I need to raise an IT support ticket." },
-    { emoji: "📊", label: "Team Analytics",      question: "Show me attrition trends for my team over the last 4 quarters." },
-    { emoji: "💰", label: "Payroll & Benefits",  question: "What are my current benefits and payroll details?" },
-    { emoji: "🎓", label: "Learning & Dev",      question: "What learning and development programs are available to me?" },
+    { emoji: "🏖", label: "Leave Balance",       question: "How many leave days do I have remaining this year?" },
+    { emoji: "📝", label: "Performance Review",  question: "What is the status of my performance review for H1 FY26?" },
+    { emoji: "🔧", label: "Raise IT Ticket",     question: "My VPN keeps disconnecting every 10 minutes. Please raise a ticket." },
+    { emoji: "📊", label: "Team Attrition",      question: "Show me attrition trends for my team over the last 4 quarters." },
+    { emoji: "🎓", label: "L&D Budget",          question: "How much of my learning and development budget have I used this year?" },
+    { emoji: "💼", label: "My Benefits",         question: "What benefits am I currently enrolled in?" },
   ];
 
   return (

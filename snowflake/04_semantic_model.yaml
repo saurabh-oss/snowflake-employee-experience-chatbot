@@ -6,7 +6,8 @@
 name: EX_Chatbot_Employee_Model
 description: >
   Semantic model for the Employee Experience chatbot.
-  Covers employee directory, leave balances, IT tickets, and attrition analytics.
+  Covers employee directory, leave balances, IT tickets, attrition analytics,
+  performance reviews, learning & development, benefits enrollment, and expense reports.
 
 tables:
 
@@ -46,8 +47,13 @@ tables:
         data_type: TEXT
         sample_values:
           - Engineering
-          - Human Resources
+          - Product
+          - Design
+          - Sales
+          - People & HR
           - IT
+          - Finance
+          - Executive
 
       - name: TEAM
         description: Sub-team within the department
@@ -55,7 +61,14 @@ tables:
         data_type: TEXT
         sample_values:
           - Platform
+          - Mobile
+          - Frontend
           - Data
+          - Core Platform
+          - Enterprise
+          - Customer Success
+          - Talent Acquisition
+          - Learning & Development
           - Service Desk
 
       - name: JOB_TITLE
@@ -125,6 +138,7 @@ tables:
     description: >
       Leave balances by employee, fiscal year, and leave type.
       BALANCE is computed as (TOTAL_ENTITLED - TAKEN - PRE_APPROVED).
+      Leave types include Annual Leave, Sick Leave, Bereavement Leave, Parental Leave.
     base_table:
       database: EX_CHATBOT
       schema: HR_DATA
@@ -152,6 +166,7 @@ tables:
           - Annual Leave
           - Sick Leave
           - Bereavement Leave
+          - Parental Leave
 
     measures:
       - name: TOTAL_ENTITLED
@@ -189,6 +204,7 @@ tables:
     description: >
       Quarterly attrition metrics by department, team, and manager.
       Used for manager-level analytics on team health.
+      Covers Engineering (Platform, Mobile, Data), Sales, and Product teams.
     base_table:
       database: EX_CHATBOT
       schema: HR_DATA
@@ -243,6 +259,7 @@ tables:
   - name: it_tickets
     description: >
       IT service desk tickets. Tracks category, priority, status, and resolution.
+      Categories: Software, Hardware, Network, Access, Security, Other.
     base_table:
       database: EX_CHATBOT
       schema: HR_DATA
@@ -254,7 +271,7 @@ tables:
 
     dimensions:
       - name: TICKET_ID
-        description: Unique ticket identifier (e.g., INC-78432)
+        description: Unique ticket identifier (e.g., INC-80001)
         expr: TICKET_ID
         data_type: TEXT
 
@@ -272,14 +289,15 @@ tables:
           - Network
           - Access
           - Hardware
+          - Security
 
       - name: SUBCATEGORY
-        description: Subcategory (e.g., VPN, Permissions)
+        description: Subcategory (e.g., VPN, License Request, GitHub Access)
         expr: SUBCATEGORY
         data_type: TEXT
 
       - name: PRIORITY
-        description: Priority level
+        description: Priority level (P1=Critical, P2=High, P3=Medium, P4=Low)
         expr: PRIORITY
         data_type: TEXT
         sample_values:
@@ -314,6 +332,451 @@ tables:
         expr: RESOLVED_AT
         data_type: timestamp
 
+  # ── Performance Reviews ───────────────────────────────────────────────────
+  - name: performance_reviews
+    description: >
+      Employee performance reviews across cycles (Annual, Mid-Year).
+      Tracks self-rating, manager rating, final rating, goals, and status.
+      Current cycles: Annual FY25 (complete), H1 FY26 (in progress, due June 30).
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: PERFORMANCE_REVIEWS
+
+    primary_key:
+      columns:
+        - REVIEW_ID
+
+    dimensions:
+      - name: REVIEW_ID
+        description: Unique review identifier
+        expr: REVIEW_ID
+        data_type: TEXT
+
+      - name: EMP_ID
+        description: Employee being reviewed
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: REVIEWER_ID
+        description: Manager conducting the review
+        expr: REVIEWER_ID
+        data_type: TEXT
+
+      - name: REVIEW_CYCLE
+        description: Review cycle label (e.g., H1 FY26, Annual FY25)
+        expr: REVIEW_CYCLE
+        data_type: TEXT
+        sample_values:
+          - Annual FY25
+          - H1 FY26
+
+      - name: REVIEW_TYPE
+        description: Type of review
+        expr: REVIEW_TYPE
+        data_type: TEXT
+        sample_values:
+          - Annual
+          - Mid-Year
+          - Probation
+
+      - name: STATUS
+        description: Review status
+        expr: STATUS
+        data_type: TEXT
+        sample_values:
+          - Not Started
+          - Self Assessment
+          - Manager Review
+          - Calibration
+          - Complete
+
+      - name: RATING_LABEL
+        description: Human-readable rating label
+        expr: RATING_LABEL
+        data_type: TEXT
+        sample_values:
+          - Outstanding
+          - Exceeds Expectations
+          - Meets Expectations
+          - Below Expectations
+
+      - name: NOTES
+        description: Review notes and comments
+        expr: NOTES
+        data_type: TEXT
+
+    time_dimensions:
+      - name: DUE_DATE
+        description: Deadline for this review to be completed
+        expr: DUE_DATE
+        data_type: date
+
+      - name: SUBMITTED_AT
+        description: When the self-assessment was submitted
+        expr: SUBMITTED_AT
+        data_type: timestamp
+
+      - name: COMPLETED_AT
+        description: When the review was fully completed
+        expr: COMPLETED_AT
+        data_type: timestamp
+
+    measures:
+      - name: SELF_RATING
+        description: Employee's self-assessment rating (1.0–5.0)
+        expr: SELF_RATING
+        data_type: NUMBER
+        default_aggregation: avg
+
+      - name: MANAGER_RATING
+        description: Manager's rating for the employee (1.0–5.0)
+        expr: MANAGER_RATING
+        data_type: NUMBER
+        default_aggregation: avg
+
+      - name: FINAL_RATING
+        description: Final calibrated rating (1.0–5.0)
+        expr: FINAL_RATING
+        data_type: NUMBER
+        default_aggregation: avg
+
+      - name: GOALS_MET
+        description: Number of goals the employee met or exceeded
+        expr: GOALS_MET
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: GOALS_TOTAL
+        description: Total number of goals set for the review cycle
+        expr: GOALS_TOTAL
+        data_type: NUMBER
+        default_aggregation: sum
+
+  # ── Learning & Development ────────────────────────────────────────────────
+  - name: learning_development
+    description: >
+      Individual learning and development records per employee.
+      Covers online courses, certifications, conferences, and workshops.
+      Status values: Planned, In Progress, Completed, Cancelled.
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: LEARNING_DEVELOPMENT
+
+    primary_key:
+      columns:
+        - LD_ID
+
+    dimensions:
+      - name: LD_ID
+        description: Unique learning record identifier
+        expr: LD_ID
+        data_type: TEXT
+
+      - name: EMP_ID
+        description: Employee undertaking the learning
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: COURSE_NAME
+        description: Name of the course, certification, or event
+        expr: COURSE_NAME
+        data_type: TEXT
+
+      - name: PROVIDER
+        description: Training provider or platform
+        expr: PROVIDER
+        data_type: TEXT
+        sample_values:
+          - Udemy
+          - Coursera
+          - AWS
+          - Snowflake
+          - Reforge
+          - Frontend Masters
+          - dbt Labs
+
+      - name: CATEGORY
+        description: Learning category
+        expr: CATEGORY
+        data_type: TEXT
+        sample_values:
+          - Technical
+          - Leadership
+          - Compliance
+          - Domain
+
+      - name: LEARNING_TYPE
+        description: Type of learning activity
+        expr: LEARNING_TYPE
+        data_type: TEXT
+        sample_values:
+          - Online Course
+          - Certification
+          - Conference
+          - Workshop
+          - Book
+
+      - name: STATUS
+        description: Completion status
+        expr: STATUS
+        data_type: TEXT
+        sample_values:
+          - Planned
+          - In Progress
+          - Completed
+          - Cancelled
+
+      - name: CURRENCY
+        description: Currency for the cost
+        expr: CURRENCY
+        data_type: TEXT
+
+      - name: FISCAL_YEAR
+        description: Fiscal year this learning is attributed to
+        expr: FISCAL_YEAR
+        data_type: NUMBER
+
+      - name: APPROVED_BY
+        description: Manager who approved this learning activity
+        expr: APPROVED_BY
+        data_type: TEXT
+
+    time_dimensions:
+      - name: START_DATE
+        description: When the learning activity started
+        expr: START_DATE
+        data_type: date
+
+      - name: COMPLETION_DATE
+        description: When the learning activity was completed
+        expr: COMPLETION_DATE
+        data_type: date
+
+    measures:
+      - name: COST
+        description: Cost of the learning activity in the specified currency
+        expr: COST
+        data_type: NUMBER
+        default_aggregation: sum
+
+  # ── Learning Budget ───────────────────────────────────────────────────────
+  - name: learning_budget
+    description: >
+      Annual L&D budget per employee. REMAINING is computed as
+      (ANNUAL_BUDGET - USED - COMMITTED).
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: LEARNING_BUDGET
+
+    dimensions:
+      - name: EMP_ID
+        description: Employee ID
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: FISCAL_YEAR
+        description: Fiscal year
+        expr: FISCAL_YEAR
+        data_type: NUMBER
+
+    measures:
+      - name: ANNUAL_BUDGET
+        description: Total annual L&D budget for this employee
+        expr: ANNUAL_BUDGET
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: USED
+        description: Amount already spent and reimbursed
+        expr: USED
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: COMMITTED
+        description: Amount approved but not yet spent (e.g., upcoming conference)
+        expr: COMMITTED
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: REMAINING
+        description: Remaining budget (annual minus used minus committed)
+        expr: REMAINING
+        data_type: NUMBER
+        default_aggregation: sum
+
+  # ── Benefits Enrollment ───────────────────────────────────────────────────
+  - name: benefits_enrollment
+    description: >
+      Employee benefits enrollment records. One row per employee per benefit type.
+      Benefit types: Health Insurance, Dental, Vision, 401(k), RSU Grant, Wellness Stipend, Life Insurance.
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: BENEFITS_ENROLLMENT
+
+    dimensions:
+      - name: EMP_ID
+        description: Employee ID
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: BENEFIT_TYPE
+        description: Type of benefit
+        expr: BENEFIT_TYPE
+        data_type: TEXT
+        sample_values:
+          - Health Insurance
+          - Dental
+          - Vision
+          - 401(k)
+          - RSU Grant
+          - Wellness Stipend
+          - Life Insurance
+
+      - name: PLAN_NAME
+        description: Specific plan or scheme name
+        expr: PLAN_NAME
+        data_type: TEXT
+
+      - name: COVERAGE_TIER
+        description: Coverage level (Employee Only, Employee + Spouse, Family)
+        expr: COVERAGE_TIER
+        data_type: TEXT
+
+      - name: STATUS
+        description: Enrollment status
+        expr: STATUS
+        data_type: TEXT
+        sample_values:
+          - Active
+          - Waived
+          - Pending
+
+    time_dimensions:
+      - name: ENROLLMENT_DATE
+        description: Date the employee enrolled in this benefit
+        expr: ENROLLMENT_DATE
+        data_type: date
+
+    measures:
+      - name: EMPLOYEE_CONTRIB_MONTHLY
+        description: Employee's monthly contribution to this benefit (USD)
+        expr: EMPLOYEE_CONTRIB_MONTHLY
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: EMPLOYER_CONTRIB_MONTHLY
+        description: Company's monthly contribution to this benefit (USD)
+        expr: EMPLOYER_CONTRIB_MONTHLY
+        data_type: NUMBER
+        default_aggregation: sum
+
+  # ── Expense Reports ───────────────────────────────────────────────────────
+  - name: expense_reports
+    description: >
+      Employee expense reports. WITHIN_POLICY is computed as (AMOUNT <= POLICY_LIMIT).
+      Status values: Draft, Submitted, Approved, Rejected, Paid.
+      Categories: Travel, Meals, Software, Hardware, Training, Conference.
+    base_table:
+      database: EX_CHATBOT
+      schema: HR_DATA
+      table: EXPENSE_REPORTS
+
+    primary_key:
+      columns:
+        - EXPENSE_ID
+
+    dimensions:
+      - name: EXPENSE_ID
+        description: Unique expense report identifier (e.g., EXP-001)
+        expr: EXPENSE_ID
+        data_type: TEXT
+
+      - name: EMP_ID
+        description: Employee who incurred the expense
+        expr: EMP_ID
+        data_type: TEXT
+
+      - name: REPORT_NAME
+        description: Name or description of the expense report
+        expr: REPORT_NAME
+        data_type: TEXT
+
+      - name: CATEGORY
+        description: Expense category
+        expr: CATEGORY
+        data_type: TEXT
+        sample_values:
+          - Travel
+          - Meals
+          - Software
+          - Hardware
+          - Training
+          - Conference
+
+      - name: CURRENCY
+        description: Currency of the expense
+        expr: CURRENCY
+        data_type: TEXT
+
+      - name: DESCRIPTION
+        description: Detailed description of the expense
+        expr: DESCRIPTION
+        data_type: TEXT
+
+      - name: STATUS
+        description: Approval status
+        expr: STATUS
+        data_type: TEXT
+        sample_values:
+          - Draft
+          - Submitted
+          - Approved
+          - Rejected
+          - Paid
+
+      - name: WITHIN_POLICY
+        description: Whether the expense is within the policy limit (true/false)
+        expr: WITHIN_POLICY
+        data_type: BOOLEAN
+
+      - name: APPROVED_BY
+        description: Manager who approved the expense
+        expr: APPROVED_BY
+        data_type: TEXT
+
+    time_dimensions:
+      - name: EXPENSE_DATE
+        description: Date the expense was incurred
+        expr: EXPENSE_DATE
+        data_type: date
+
+      - name: SUBMITTED_AT
+        description: When the expense was submitted for approval
+        expr: SUBMITTED_AT
+        data_type: timestamp
+
+      - name: APPROVED_AT
+        description: When the expense was approved or rejected
+        expr: APPROVED_AT
+        data_type: timestamp
+
+    measures:
+      - name: AMOUNT
+        description: Expense amount in the specified currency
+        expr: AMOUNT
+        data_type: NUMBER
+        default_aggregation: sum
+
+      - name: POLICY_LIMIT
+        description: Maximum allowed amount for this category per policy
+        expr: POLICY_LIMIT
+        data_type: NUMBER
+        default_aggregation: avg
+
 # ── Relationships ─────────────────────────────────────────────────────────────
 relationships:
   - name: leave_to_employees
@@ -340,13 +803,67 @@ relationships:
       - left_column: MANAGER_ID
         right_column: EMP_ID
 
+  - name: reviews_to_employees
+    left_table: performance_reviews
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
+  - name: reviews_to_reviewer
+    left_table: performance_reviews
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: REVIEWER_ID
+        right_column: EMP_ID
+
+  - name: ld_to_employees
+    left_table: learning_development
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
+  - name: budget_to_employees
+    left_table: learning_budget
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
+  - name: benefits_to_employees
+    left_table: benefits_enrollment
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
+  - name: expenses_to_employees
+    left_table: expense_reports
+    right_table: employees
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: EMP_ID
+        right_column: EMP_ID
+
 # ── Model-level instructions for the SQL generator ────────────────────────────
 custom_instructions: |
   When generating SQL:
-  - Always filter by the requesting user's EMP_ID when the question is about
-    "my" data (my leave, my tickets, my assets).
-  - For manager queries ("my team"), filter attrition_fact or employees by MANAGER_ID.
+  - Always filter by the requesting user's EMP_ID when the question uses "my"
+    (my leave, my tickets, my review, my expenses, my L&D budget, my benefits).
+  - For manager queries ("my team", "team attrition"), filter by MANAGER_ID.
   - Never expose SALARY unless explicitly confirmed the role is EX_CHATBOT_ADMIN.
-  - Format dates as human-readable strings.
+  - Format dates as human-readable strings (e.g., 'January 15, 2026').
   - Round percentages to one decimal place.
-  - Current fiscal year is 2026.
+  - Current fiscal year is 2026. Current date is in May 2026.
+  - For leave balance, join employee_leave with employees on EMP_ID.
+  - For performance review status, use the H1 FY26 cycle for current status.
+  - For L&D budget remaining, use REMAINING column from learning_budget.
+  - For expense reports, WITHIN_POLICY = TRUE means within allowed limits.
+  - Expense status 'Rejected' means the claim was denied; show DESCRIPTION and POLICY_LIMIT.
+  - Benefits are in BENEFITS_ENROLLMENT; monthly contributions are per benefit type.

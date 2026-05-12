@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
+import re
+import random
 import jwt as pyjwt
 
 from dotenv import load_dotenv
@@ -205,50 +207,194 @@ def cortex_analyst(question: str, emp_id: str = None) -> dict:
 # ── Agent Orchestration ──────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are Ask EX, an Employee Experience AI assistant built on Snowflake Intelligence.
-You help employees with HR questions, IT support, policy lookups, and manager analytics.
+You help employees with HR questions, IT support, policy lookups, performance reviews,
+learning & development, benefits, expenses, and manager analytics.
 
 RULES:
-1. Always ground answers in retrieved data — never fabricate.
-2. Cite the source (policy name + section, or SQL query) in every answer.
-3. For personal data questions ("my leave", "my tickets"), filter by the requesting user's EMP_ID.
-4. For manager questions ("my team"), filter by MANAGER_ID.
-5. If you cannot find an answer, say so clearly and suggest who to contact.
-6. Never expose salary data unless the user role explicitly permits it.
-7. For actions (raise ticket, apply leave), confirm before executing.
-8. Keep responses concise. Use markdown formatting.
-9. Be warm and professional. Suggest related follow-ups."""
+1. Always ground answers in retrieved data — never fabricate numbers or policies.
+2. Cite your source in every answer: policy name + version, or the SQL / data retrieved.
+3. For personal data ("my leave", "my review", "my expenses"), filter by the requesting employee's EMP_ID.
+4. For manager queries ("my team"), use MANAGER_ID to scope the data.
+5. If you cannot find an answer, say so clearly and suggest who to contact (e.g., hr@company.com).
+6. Never expose salary data unless the user role is EX_CHATBOT_ADMIN.
+7. When an action was executed (ticket created, expense submitted), confirm clearly with the ID and next steps.
+8. Keep responses concise. Use markdown: **bold** for key figures, tables for comparisons, bullet lists for steps.
+9. Be warm and professional. End with 1–2 suggested follow-up questions as chips."""
 
 
 def classify_intent(question: str) -> str:
+    """
+    LLM-based intent classification using a small fast model.
+    Falls back to keyword matching if LLM call fails.
+    """
+    prompt = (
+        'Classify this employee question into exactly one intent label. Return ONLY a JSON object.\n\n'
+        f'Question: "{question}"\n\n'
+        'Intent labels:\n'
+        '- "analyst": questions about data, numbers, balances, counts, trends, lists '
+        '  (leave days, ticket count, attrition rate, L&D budget, performance rating, expenses, benefits, headcount)\n'
+        '- "search": questions about policies, rules, procedures, guidelines, entitlements, "how do I", "what is the policy"\n'
+        '- "action_ticket": wants to create or raise an IT support ticket\n'
+        '- "action_leave": wants to apply for, request, or book leave / time off\n'
+        '- "action_expense": wants to submit an expense claim or reimbursement\n'
+        '- "general": greeting, thank you, or unclear intent\n\n'
+        'Return JSON: {"intent": "<label>", "confidence": 0.0-1.0}\nJSON:'
+    )
+    try:
+        result = execute_query(
+            "SELECT SNOWFLAKE.CORTEX.COMPLETE(%s, %s) AS r",
+            ("llama3.1-8b", prompt)
+        )
+        raw = str(result[0].get("R", "")) if result else ""
+        match = re.search(r'\{[^}]+\}', raw)
+        if match:
+            data = json.loads(match.group())
+            intent = data.get("intent", "search")
+            if intent in ("analyst", "search", "action_ticket", "action_leave", "action_expense", "general"):
+                return intent
+    except Exception as e:
+        logger.warning(f"LLM classification failed, using keyword fallback: {e}")
+
+    # Keyword fallback
     q = question.lower()
-
-    data_kw = [
-        "how many", "show me", "count", "total", "average",
-        "leave balance", "leave days", "headcount", "attrition",
-        "tickets", "assets", "my team", "trend", "quarter",
-        "remaining", "taken", "budget"
-    ]
-    if any(kw in q for kw in data_kw):
+    if any(kw in q for kw in ["raise a ticket", "create a ticket", "open a ticket", "log a ticket", "it issue", "report an issue"]):
+        return "action_ticket"
+    if any(kw in q for kw in ["apply for leave", "book leave", "request leave", "take time off", "book time off", "days off"]):
+        return "action_leave"
+    if any(kw in q for kw in ["submit expense", "claim expense", "expense report", "reimburse", "reimbursement"]):
+        return "action_expense"
+    if any(kw in q for kw in ["how many", "show me", "count", "total", "balance", "headcount",
+                                "attrition", "trend", "quarter", "remaining", "budget", "rating",
+                                "review status", "my benefits", "my expenses", "my tickets"]):
         return "analyst"
-
-    policy_kw = [
-        "policy", "what's the", "what is the", "how do i",
-        "process for", "procedure", "rule", "guideline",
-        "handbook", "allowed", "permitted", "requirement",
-        "bereavement", "remote work", "vpn", "password",
-        "code of conduct", "ethics"
-    ]
-    if any(kw in q for kw in policy_kw):
+    if any(kw in q for kw in ["policy", "how do i", "what is the", "procedure", "guideline",
+                                "allowed", "permitted", "entitlement", "parental", "equity", "rsu",
+                                "vpn", "code of conduct", "referral bonus"]):
         return "search"
-
-    action_kw = [
-        "raise a ticket", "create a ticket", "apply for leave",
-        "book", "submit", "request", "escalate", "notify"
-    ]
-    if any(kw in q for kw in action_kw):
-        return "action"
-
     return "search"
+
+
+def _extract_params_via_llm(prompt: str) -> dict:
+    """Helper: call Cortex COMPLETE and parse the first JSON object from the response."""
+    try:
+        result = execute_query(
+            "SELECT SNOWFLAKE.CORTEX.COMPLETE(%s, %s) AS r",
+            ("llama3.1-8b", prompt)
+        )
+        raw = str(result[0].get("R", "")) if result else ""
+        match = re.search(r'\{.*?\}', raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except Exception as e:
+        logger.warning(f"Param extraction failed: {e}")
+    return {}
+
+
+def extract_ticket_params(question: str) -> dict:
+    prompt = (
+        'Extract IT support ticket parameters from this request. Return ONLY valid JSON.\n\n'
+        f'Request: "{question}"\n\n'
+        'Rules:\n'
+        '- category: one of [Software, Hardware, Network, Access, Security, Other]\n'
+        '- subcategory: specific topic (e.g. "VPN", "GitHub Access", "License Request", "Laptop", "Password Reset")\n'
+        '- priority: P1=Critical/Service Down, P2=High/Significant Impact, P3=Medium/Normal, P4=Low/Minor\n'
+        '- summary: clear 1-sentence description of the issue (max 120 chars)\n\n'
+        'Return JSON: {"category": "...", "subcategory": "...", "priority": "P3", "summary": "..."}\nJSON:'
+    )
+    defaults = {"category": "Other", "subcategory": "General", "priority": "P3", "summary": question[:120]}
+    params = _extract_params_via_llm(prompt)
+    return {**defaults, **params}
+
+
+def extract_leave_params(question: str) -> dict:
+    prompt = (
+        'Extract leave request parameters from this request. Return ONLY valid JSON.\n\n'
+        f'Request: "{question}"\n\n'
+        'Rules:\n'
+        '- leave_type: one of [Annual Leave, Sick Leave, Parental Leave, Bereavement Leave, Unpaid Leave]\n'
+        '- start_date: ISO date string YYYY-MM-DD if mentioned, else null\n'
+        '- end_date: ISO date string YYYY-MM-DD if mentioned, else null\n'
+        '- days_requested: number of days if mentioned, else null\n'
+        '- reason: brief reason if given, else null\n\n'
+        'Return JSON: {"leave_type": "Annual Leave", "start_date": null, "end_date": null, '
+        '"days_requested": null, "reason": null}\nJSON:'
+    )
+    defaults = {"leave_type": "Annual Leave", "start_date": None, "end_date": None, "days_requested": None, "reason": None}
+    params = _extract_params_via_llm(prompt)
+    return {**defaults, **params}
+
+
+def extract_expense_params(question: str) -> dict:
+    prompt = (
+        'Extract expense report parameters from this request. Return ONLY valid JSON.\n\n'
+        f'Request: "{question}"\n\n'
+        'Rules:\n'
+        '- category: one of [Travel, Meals, Software, Hardware, Training, Conference, Other]\n'
+        '- amount: numeric value if mentioned, else null\n'
+        '- currency: ISO currency code, default "USD"\n'
+        '- description: brief description of what was purchased\n'
+        '- report_name: short name for the expense report\n\n'
+        'Category policy limits: Travel=800, Meals=400, Software=100, Hardware=150, Training=500, Conference=2000\n\n'
+        'Return JSON: {"category": "Other", "amount": null, "currency": "USD", '
+        '"description": "...", "report_name": "Expense Claim"}\nJSON:'
+    )
+    policy_limits = {"Travel": 800, "Meals": 400, "Software": 100, "Hardware": 150, "Training": 500, "Conference": 2000, "Other": 500}
+    defaults = {"category": "Other", "amount": None, "currency": "USD", "description": question[:200], "report_name": "Expense Claim"}
+    params = _extract_params_via_llm(prompt)
+    merged = {**defaults, **params}
+    merged["policy_limit"] = policy_limits.get(merged.get("category", "Other"), 500)
+    return merged
+
+
+# ── Action Executors ─────────────────────────────────────────────────────────
+
+def create_it_ticket(params: dict, emp_id: str) -> dict:
+    ticket_id = f"INC-{random.randint(90000, 99999)}"
+    assigned = {
+        "Software": "IT Operations", "Hardware": "Hardware Support",
+        "Network": "Network Operations", "Access": "IAM Team",
+        "Security": "Security Team",
+    }.get(params.get("category", "Other"), "IT Operations")
+    execute_query(
+        """INSERT INTO EX_CHATBOT.HR_DATA.IT_TICKETS
+           (TICKET_ID, EMP_ID, CATEGORY, SUBCATEGORY, PRIORITY, SUMMARY, STATUS, ASSIGNED_GROUP)
+           VALUES (%s, %s, %s, %s, %s, %s, 'Open', %s)""",
+        (ticket_id, emp_id, params.get("category"), params.get("subcategory"),
+         params.get("priority", "P3"), params.get("summary"), assigned)
+    )
+    return {"ticket_id": ticket_id, "status": "Open", "assigned_to": assigned,
+            "priority": params.get("priority", "P3")}
+
+
+def submit_leave_request(params: dict, emp_id: str) -> dict:
+    request_id = f"LVR-{random.randint(10000, 99999)}"
+    execute_query(
+        """INSERT INTO EX_CHATBOT.HR_DATA.LEAVE_REQUESTS
+           (REQUEST_ID, EMP_ID, LEAVE_TYPE, START_DATE, END_DATE, DAYS_REQUESTED, REASON, STATUS)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending')""",
+        (request_id, emp_id, params.get("leave_type", "Annual Leave"),
+         params.get("start_date"), params.get("end_date"),
+         params.get("days_requested"), params.get("reason"))
+    )
+    return {"request_id": request_id, "status": "Pending", "leave_type": params.get("leave_type"),
+            "days_requested": params.get("days_requested")}
+
+
+def submit_expense(params: dict, emp_id: str) -> dict:
+    expense_id = f"EXP-{random.randint(9000, 9999)}"
+    execute_query(
+        """INSERT INTO EX_CHATBOT.HR_DATA.EXPENSE_REPORTS
+           (EXPENSE_ID, EMP_ID, REPORT_NAME, CATEGORY, AMOUNT, CURRENCY,
+            EXPENSE_DATE, DESCRIPTION, POLICY_LIMIT, STATUS, SUBMITTED_AT)
+           VALUES (%s, %s, %s, %s, %s, %s, CURRENT_DATE(), %s, %s, 'Submitted', CURRENT_TIMESTAMP())""",
+        (expense_id, emp_id, params.get("report_name", "Expense Claim"),
+         params.get("category", "Other"), params.get("amount", 0),
+         params.get("currency", "USD"), params.get("description", ""),
+         params.get("policy_limit", 500))
+    )
+    within = (params.get("amount") or 0) <= params.get("policy_limit", 500)
+    return {"expense_id": expense_id, "status": "Submitted",
+            "amount": params.get("amount"), "within_policy": within}
 
 
 async def process_message(question: str, emp_id: str = "EMP-4821", session_id: str = None, history: list = None) -> dict:
@@ -256,6 +402,7 @@ async def process_message(question: str, emp_id: str = "EMP-4821", session_id: s
     intent = classify_intent(question)
     tools_called = []
     context_parts = []
+    action_result = None
 
     try:
         if intent == "analyst":
@@ -278,15 +425,77 @@ async def process_message(question: str, emp_id: str = "EMP-4821", session_id: s
                     f"Content: {doc.get('CONTENT', '')[:2000]}"
                 )
 
-        elif intent == "action":
+        elif intent == "action_ticket":
+            params = extract_ticket_params(question)
+            tools_called.append({"tool": "extract_ticket_params", "params": params})
+            action_result = create_it_ticket(params, emp_id)
+            tools_called.append({"tool": "create_it_ticket", "result": action_result})
+            # Also search for relevant policy context
+            docs = cortex_search(question, limit=1)
+            if docs:
+                context_parts.append(f"IT Policy: {docs[0].get('CONTENT', '')[:800]}")
+            context_parts.append(
+                f"ACTION EXECUTED — IT Ticket Created:\n"
+                f"Ticket ID: {action_result['ticket_id']}\n"
+                f"Priority: {action_result['priority']}\n"
+                f"Category: {params.get('category')} / {params.get('subcategory')}\n"
+                f"Summary: {params.get('summary')}\n"
+                f"Assigned to: {action_result['assigned_to']}\n"
+                f"Status: Open"
+            )
+
+        elif intent == "action_leave":
+            params = extract_leave_params(question)
+            tools_called.append({"tool": "extract_leave_params", "params": params})
+            # Check current leave balance before submitting
+            balance_r = cortex_analyst(
+                f"Show leave balance for employee {emp_id} in fiscal year 2026", emp_id
+            )
+            tools_called.append({"tool": "cortex_analyst", "purpose": "leave_balance_check"})
+            if balance_r.get("result"):
+                context_parts.append(f"Current leave balance:\n{json.dumps(balance_r['result'], default=str)}")
+            action_result = submit_leave_request(params, emp_id)
+            tools_called.append({"tool": "submit_leave_request", "result": action_result})
+            # Policy context
+            docs = cortex_search("leave application process parental sick annual", limit=1)
+            if docs:
+                context_parts.append(f"Leave Policy: {docs[0].get('CONTENT', '')[:600]}")
+            context_parts.append(
+                f"ACTION EXECUTED — Leave Request Submitted:\n"
+                f"Request ID: {action_result['request_id']}\n"
+                f"Leave Type: {action_result['leave_type']}\n"
+                f"Days Requested: {action_result.get('days_requested', 'TBD')}\n"
+                f"Status: Pending manager approval"
+            )
+
+        elif intent == "action_expense":
+            params = extract_expense_params(question)
+            tools_called.append({"tool": "extract_expense_params", "params": params})
+            action_result = submit_expense(params, emp_id)
+            tools_called.append({"tool": "submit_expense", "result": action_result})
+            # Policy context
+            docs = cortex_search("expense reimbursement policy limits", limit=1)
+            if docs:
+                context_parts.append(f"Expense Policy: {docs[0].get('CONTENT', '')[:600]}")
+            within_str = "within policy limits" if action_result.get("within_policy") else "EXCEEDS policy limit"
+            context_parts.append(
+                f"ACTION EXECUTED — Expense Submitted:\n"
+                f"Expense ID: {action_result['expense_id']}\n"
+                f"Category: {params.get('category')}\n"
+                f"Amount: {params.get('currency', 'USD')} {action_result.get('amount')}\n"
+                f"Policy Limit: {params.get('policy_limit')}\n"
+                f"Policy Check: {within_str}\n"
+                f"Status: Submitted — pending manager approval"
+            )
+
+        else:  # general / fallback
             docs = cortex_search(question)
             tools_called.append({"tool": "cortex_search", "results_count": len(docs)})
             for doc in docs:
-                context_parts.append(f"Source: {doc.get('TITLE', '')}\n{doc.get('CONTENT', '')[:1500]}")
-            r = cortex_analyst(question, emp_id)
-            tools_called.append({"tool": "cortex_analyst", "sql": r.get("sql")})
-            if r["result"]:
-                context_parts.append(f"Data: {json.dumps(r['result'], default=str)}")
+                context_parts.append(
+                    f"Source: {doc.get('TITLE', 'Unknown')} (v{doc.get('VERSION', '?')})\n"
+                    f"Content: {doc.get('CONTENT', '')[:1500]}"
+                )
 
         retrieval_context = "\n\n---\n\n".join(context_parts) if context_parts else "No relevant data found."
 
@@ -294,11 +503,11 @@ async def process_message(question: str, emp_id: str = "EMP-4821", session_id: s
         if history:
             turns = "\n".join(
                 f"{m['role'].upper()}: {m['content'][:500]}"
-                for m in history[-6:]  # last 3 exchanges
+                for m in history[-6:]
             )
             history_text = f"CONVERSATION HISTORY (for context only):\n{turns}\n\n"
 
-        prompt = f"""{history_text}Based on the following retrieved context, answer the employee's latest message.
+        prompt = f"""{history_text}Based on the retrieved context below, respond to the employee's message.
 Employee ID: {emp_id}
 
 RETRIEVED CONTEXT:
@@ -307,7 +516,7 @@ RETRIEVED CONTEXT:
 EMPLOYEE MESSAGE:
 {question}
 
-Remember: cite your sources, be concise, use markdown formatting."""
+Instructions: cite your sources, be concise, use markdown formatting. If an action was executed, confirm clearly with the ID returned and explain next steps."""
 
         response_text = cortex_complete(prompt, SYSTEM_PROMPT)
         latency_ms = int((time.time() - start) * 1000)
@@ -330,6 +539,7 @@ Remember: cite your sources, be concise, use markdown formatting."""
             "tools_called": tools_called,
             "latency_ms": latency_ms,
             "session_id": session_id,
+            "action_result": action_result,
         }
 
     except Exception as e:
@@ -339,6 +549,7 @@ Remember: cite your sources, be concise, use markdown formatting."""
             "intent": intent,
             "tools_called": tools_called,
             "latency_ms": int((time.time() - start) * 1000),
+            "action_result": None,
             "error": str(e),
         }
 
@@ -401,6 +612,30 @@ class ChatResponse(BaseModel):
     tools_called: list
     latency_ms: int
     session_id: Optional[str] = None
+    action_result: Optional[dict] = None
+
+class TicketRequest(BaseModel):
+    emp_id: str
+    category: str
+    subcategory: str
+    priority: str = "P3"
+    summary: str
+
+class LeaveRequest(BaseModel):
+    emp_id: str
+    leave_type: str = "Annual Leave"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    days_requested: Optional[float] = None
+    reason: Optional[str] = None
+
+class ExpenseRequest(BaseModel):
+    emp_id: str
+    category: str
+    amount: float
+    currency: str = "USD"
+    description: str
+    report_name: str = "Expense Claim"
 
 class HealthResponse(BaseModel):
     status: str
@@ -469,6 +704,37 @@ async def search_policies(query: str, limit: int = 3):
 @app.get("/api/analytics")
 async def run_analytics(question: str, emp_id: str = "EMP-4821"):
     return cortex_analyst(question, emp_id)
+
+
+@app.post("/api/actions/ticket")
+async def action_create_ticket(req: TicketRequest):
+    """Create an IT support ticket directly (without going through chat)."""
+    params = {"category": req.category, "subcategory": req.subcategory,
+              "priority": req.priority, "summary": req.summary}
+    result = create_it_ticket(params, req.emp_id)
+    return result
+
+
+@app.post("/api/actions/leave")
+async def action_submit_leave(req: LeaveRequest):
+    """Submit a leave request directly."""
+    params = {"leave_type": req.leave_type, "start_date": req.start_date,
+              "end_date": req.end_date, "days_requested": req.days_requested,
+              "reason": req.reason}
+    result = submit_leave_request(params, req.emp_id)
+    return result
+
+
+@app.post("/api/actions/expense")
+async def action_submit_expense(req: ExpenseRequest):
+    """Submit an expense report directly."""
+    policy_limits = {"Travel": 800, "Meals": 400, "Software": 100,
+                     "Hardware": 150, "Training": 500, "Conference": 2000}
+    params = {"category": req.category, "amount": req.amount, "currency": req.currency,
+              "description": req.description, "report_name": req.report_name,
+              "policy_limit": policy_limits.get(req.category, 500)}
+    result = submit_expense(params, req.emp_id)
+    return result
 
 
 @app.get("/api/debug/analyst-token")
