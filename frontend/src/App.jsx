@@ -704,11 +704,11 @@ export default function EXChatbot() {
 
   const callBackend = async (text) => {
     setTyping(true);
-    // Send last 6 messages (3 exchanges) as history so the LLM has conversation context
-    const history = messages.slice(-6).map(m => ({
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.text
-    }));
+    // Send last 6 chat messages as history (exclude travel panel messages which have no text)
+    const history = messages
+      .filter(m => (m.role === "user" || m.role === "bot") && m.text)
+      .slice(-6)
+      .map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",

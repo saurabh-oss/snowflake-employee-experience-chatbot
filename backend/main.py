@@ -672,10 +672,11 @@ async def process_message(question: str, emp_id: str = "EMP-4821", session_id: s
         history_text = ""
         if history:
             turns = "\n".join(
-                f"{m['role'].upper()}: {m['content'][:500]}"
+                f"{m['role'].upper()}: {m.get('content', '')[:500]}"
                 for m in history[-6:]
+                if m.get('content')  # skip travel/system messages with no content
             )
-            history_text = f"CONVERSATION HISTORY (for context only):\n{turns}\n\n"
+            history_text = f"CONVERSATION HISTORY (for context only):\n{turns}\n\n" if turns else ""
 
         prompt = f"""{history_text}Based on the retrieved context below, respond to the employee's message.
 Employee ID: {emp_id}
