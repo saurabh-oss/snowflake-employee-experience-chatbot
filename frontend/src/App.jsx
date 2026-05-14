@@ -50,6 +50,22 @@ const DEMO_CONVERSATIONS = [
   }
 ];
 
+// ─── Travel Agent Config ───
+const TRAVEL_AGENTS_CONFIG = [
+  { id: "calendar", emoji: "📅", label: "Calendar",  workMsg: "Checking schedule conflicts...",      delay: 1800 },
+  { id: "budget",   emoji: "💰", label: "Budget",    workMsg: "Validating travel budget policy...",  delay: 2800 },
+  { id: "flight",   emoji: "✈️", label: "Flight",   workMsg: "Searching SFO → JFK · May 14...",     delay: 3500 },
+  { id: "hotel",    emoji: "🏨", label: "Hotel",     workMsg: "Finding hotels in Midtown NYC...",    delay: 4500 },
+  { id: "approval", emoji: "✅", label: "Approval",  workMsg: "Routing request to manager...",       delay: 5500 },
+];
+const TRAVEL_AGENT_RESULTS = {
+  calendar: { status: "done",    msg: "No conflicts · Blocked May 14–17 on calendar" },
+  budget:   { status: "done",    msg: "Budget OK · $847 travel YTD of $2,500 limit" },
+  flight:   { status: "done",    msg: "Delta DL 412 · SFO→JFK · $342 · Confirmed" },
+  hotel:    { status: "done",    msg: "Marriott Times Sq · $189/nt · 3 nights · $567" },
+  approval: { status: "pending", msg: "Sent to Alex Chen · Est. response ~2 hrs" },
+};
+
 // ─── SVG Icons ───
 const Icons = {
   Send: () => (
@@ -362,8 +378,161 @@ function TypingIndicator() {
   );
 }
 
+// ─── Agent Card ───
+function AgentCard({ config, state }) {
+  const { status, message } = state;
+  const palette = {
+    idle:    { accent: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.02)", border: "rgba(255,255,255,0.07)" },
+    working: { accent: "#00B4D8",               bg: "rgba(0,180,216,0.05)",   border: "rgba(0,180,216,0.2)"   },
+    done:    { accent: "#06A77D",               bg: "rgba(6,167,125,0.05)",   border: "rgba(6,167,125,0.2)"   },
+    pending: { accent: "#FFB703",               bg: "rgba(255,183,3,0.05)",   border: "rgba(255,183,3,0.2)"   },
+  }[status];
+  return (
+    <div style={{
+      padding: "10px 13px", borderRadius: 10,
+      background: palette.bg, border: `1px solid ${palette.border}`,
+      transition: "all 0.5s cubic-bezier(0.22,1,0.36,1)",
+      display: "flex", alignItems: "center", gap: 11
+    }}>
+      <span style={{ fontSize: 18, lineHeight: 1 }}>{config.emoji}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: 600 }}>{config.label} Agent</div>
+        <div style={{ color: palette.accent, fontSize: 10.5, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {message}
+        </div>
+      </div>
+      <div style={{ width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {status === "working" && (
+          <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(0,180,216,0.25)", borderTopColor: "#00B4D8", animation: "agentSpin 0.75s linear infinite" }} />
+        )}
+        {status === "done" && (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06A77D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        )}
+        {status === "pending" && (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFB703" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Travel Agent Panel ───
+function TravelAgentPanel({ request }) {
+  const init = Object.fromEntries(TRAVEL_AGENTS_CONFIG.map(a => [a.id, { status: "idle", message: "Ready" }]));
+  const [states, setStates] = useState(init);
+  const [complete, setComplete] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => { const t = setTimeout(() => setVisible(true), 80); return () => clearTimeout(t); }, []);
+
+  useEffect(() => {
+    const timers = [];
+    TRAVEL_AGENTS_CONFIG.forEach((agent, i) => {
+      timers.push(setTimeout(() =>
+        setStates(p => ({ ...p, [agent.id]: { status: "working", message: agent.workMsg } })),
+        150 + i * 110
+      ));
+      timers.push(setTimeout(() => {
+        const r = TRAVEL_AGENT_RESULTS[agent.id];
+        setStates(p => ({ ...p, [agent.id]: { status: r.status, message: r.msg } }));
+      }, agent.delay));
+    });
+    timers.push(setTimeout(() => setComplete(true), 6400));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const allResolved = Object.values(states).every(s => s.status === "done" || s.status === "pending");
+
+  return (
+    <div style={{
+      display: "flex", gap: 10, padding: "4px 16px", alignItems: "flex-start",
+      opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(16px)",
+      transition: "all 0.4s cubic-bezier(0.22,1,0.36,1)"
+    }}>
+      <div style={{
+        width: 32, height: 32, minWidth: 32, borderRadius: 10,
+        background: "linear-gradient(135deg, rgba(0,180,216,0.15), rgba(6,167,125,0.1))",
+        border: "1px solid rgba(0,180,216,0.2)",
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginTop: 2
+      }}>🌍</div>
+      <div style={{
+        flex: 1, maxWidth: "calc(100% - 50px)", overflow: "hidden",
+        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "4px 18px 18px 18px",
+        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "14px 16px",
+          background: "linear-gradient(135deg, rgba(0,180,216,0.08), rgba(6,167,125,0.05))",
+          borderBottom: "1px solid rgba(255,255,255,0.06)"
+        }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+            <div>
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>Travel Automation — {request.destination}</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2 }}>
+                {request.startLabel} → {request.endLabel} · {request.purpose}
+              </div>
+            </div>
+            <span style={{
+              fontSize: 10, padding: "3px 9px", borderRadius: 20, fontWeight: 700, letterSpacing: 0.5, flexShrink: 0,
+              background: allResolved ? "rgba(6,167,125,0.12)" : "rgba(0,180,216,0.12)",
+              border: `1px solid ${allResolved ? "rgba(6,167,125,0.25)" : "rgba(0,180,216,0.25)"}`,
+              color: allResolved ? "#06A77D" : "#00B4D8",
+            }}>{allResolved ? "PROCESSED" : "PROCESSING"}</span>
+          </div>
+          <div style={{
+            marginTop: 10, padding: "6px 10px", borderRadius: 8,
+            background: "rgba(0,0,0,0.2)", color: "rgba(255,255,255,0.4)",
+            fontSize: 10, fontFamily: "'JetBrains Mono', monospace"
+          }}>5 agents · asyncio.gather() · parallel execution · Snowflake Cortex</div>
+        </div>
+
+        {/* Agent cards */}
+        <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
+          {TRAVEL_AGENTS_CONFIG.map(agent => <AgentCard key={agent.id} config={agent} state={states[agent.id]} />)}
+        </div>
+
+        {/* Summary */}
+        {complete && (
+          <div style={{ padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeSlideIn 0.5s ease" }}>
+            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+              Booking Summary
+            </div>
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 10 }}>
+              {[
+                { label: "Flight", value: "$342", icon: "✈️" },
+                { label: "Hotel (3 nts)", value: "$567", icon: "🏨" },
+                { label: "Total", value: "$909", icon: "💳", highlight: true },
+              ].map((item, i) => (
+                <div key={i} style={{
+                  flex: 1, minWidth: 90, padding: "9px 11px", borderRadius: 10,
+                  background: item.highlight ? "rgba(0,180,216,0.08)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${item.highlight ? "rgba(0,180,216,0.2)" : "rgba(255,255,255,0.07)"}`,
+                }}>
+                  <div style={{ fontSize: 13, marginBottom: 3 }}>{item.icon}</div>
+                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10 }}>{item.label}</div>
+                  <div style={{ color: item.highlight ? "#00B4D8" : "#fff", fontSize: 15, fontWeight: 700 }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{
+              padding: "8px 10px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6,
+              background: "rgba(255,183,3,0.05)", border: "1px solid rgba(255,183,3,0.12)",
+              color: "rgba(255,183,3,0.85)", fontSize: 11
+            }}>
+              <span>⏳</span>
+              <span>Awaiting approval from <strong style={{ color: "#FFB703" }}>Alex Chen</strong> — you'll be notified within 2 hrs.</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Sidebar ───
-function Sidebar({ open, onClose, onSelectConvo, onTopicSelect }) {
+function Sidebar({ open, onClose, onSelectConvo, onTopicSelect, onTravelDemo }) {
   const quickTopics = [
     { emoji: "🏖", label: "Leave Balance",       question: "How many leave days do I have remaining this year?" },
     { emoji: "📝", label: "Performance Review",  question: "What is the status of my performance review for H1 FY26?" },
@@ -439,6 +608,28 @@ function Sidebar({ open, onClose, onSelectConvo, onTopicSelect }) {
           ))}
         </div>
 
+        <div style={{ padding: "0 20px 14px" }}>
+          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 }}>Demo</div>
+          <button
+            onClick={() => { onTravelDemo(); onClose(); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, width: "100%",
+              padding: "11px 12px", borderRadius: 10, cursor: "pointer",
+              background: "linear-gradient(135deg, rgba(0,180,216,0.08), rgba(6,167,125,0.06))",
+              border: "1px solid rgba(0,180,216,0.2)",
+              fontFamily: "inherit", transition: "all 0.2s"
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,180,216,0.14), rgba(6,167,125,0.1))"; e.currentTarget.style.borderColor = "rgba(0,180,216,0.35)"; }}
+            onMouseOut={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,180,216,0.08), rgba(6,167,125,0.06))"; e.currentTarget.style.borderColor = "rgba(0,180,216,0.2)"; }}
+          >
+            <span style={{ fontSize: 20 }}>🌍</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ color: "#00B4D8", fontSize: 12, fontWeight: 700 }}>Multi-Agent Travel Demo</div>
+              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, marginTop: 1 }}>5 agents · parallel · asyncio.gather()</div>
+            </div>
+          </button>
+        </div>
+
         <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
             width: 34, height: 34, borderRadius: "50%",
@@ -467,6 +658,14 @@ export default function EXChatbot() {
   const [showSplash, setShowSplash] = useState(true);
   const [connected, setConnected] = useState(!!API_URL);
   const scrollRef = useRef(null);
+
+  const handleTravelDemo = () => {
+    setMessages(prev => [
+      ...prev,
+      { role: "user", text: "Book travel to New York, May 14–17, for the Q2 Engineering Summit." },
+      { type: "travel", request: { destination: "New York, NY", purpose: "Q2 Engineering Summit", startLabel: "May 14, 2026", endLabel: "May 17, 2026" } }
+    ]);
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setShowSplash(false), 2200);
@@ -616,6 +815,7 @@ export default function EXChatbot() {
         @keyframes typingBounce { 0%,60%,100% { transform: translateY(0); opacity: 0.3 } 30% { transform: translateY(-6px); opacity: 1 } }
         @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 20px rgba(0,180,216,0.2) } 50% { box-shadow: 0 0 30px rgba(0,180,216,0.35) } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes agentSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         * { box-sizing: border-box; }
         input::placeholder { color: rgba(255,255,255,0.4); }
         ::-webkit-scrollbar { width: 3px; }
@@ -655,6 +855,7 @@ export default function EXChatbot() {
         onClose={() => setSidebarOpen(false)}
         onSelectConvo={() => setMessages([])}
         onTopicSelect={q => setInput(q)}
+        onTravelDemo={handleTravelDemo}
       />
 
       {/* Chat panel — flex column, fills remaining width on desktop */}
@@ -748,16 +949,35 @@ export default function EXChatbot() {
                       background: ["rgba(0,180,216,0.1)", "rgba(6,167,125,0.1)", "rgba(255,183,3,0.1)", "rgba(144,224,239,0.1)"][i],
                       display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16
                     }}>
-                      {["🏖", "🌍", "🔧", "📊"][i]}
+                      {["🏖", "📝", "🔧", "🎓"][i]}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 500 }}>{demo.user}</div>
                       <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2 }}>
-                        {["Cortex Analyst", "Cortex Search", "MCP → ServiceNow", "Cortex Analyst"][i]}
+                        {["Cortex Analyst", "Cortex Analyst", "Action → Snowflake", "Cortex Analyst"][i]}
                       </div>
                     </div>
                   </button>
                 ))}
+                <button onClick={handleTravelDemo} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 14, cursor: "pointer", textAlign: "left", transition: "all 0.2s",
+                  fontFamily: "inherit", animation: "slideUp 0.4s ease 0.42s both"
+                }}
+                  onMouseOver={e => { e.currentTarget.style.background = "rgba(6,167,125,0.06)"; e.currentTarget.style.borderColor = "rgba(6,167,125,0.2)"; }}
+                  onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+                >
+                  <div style={{
+                    width: 36, height: 36, minWidth: 36, borderRadius: 10,
+                    background: "rgba(6,167,125,0.1)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16
+                  }}>🌍</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 500 }}>Book travel to New York for Q2 Engineering Summit</div>
+                    <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2 }}>5 Agents · Parallel · asyncio.gather()</div>
+                  </div>
+                </button>
               </div>
 
               <div style={{
@@ -776,7 +996,9 @@ export default function EXChatbot() {
           )}
 
           {messages.map((msg, i) => (
-            <MessageBubble key={i} msg={msg} />
+            msg.type === "travel"
+              ? <TravelAgentPanel key={i} request={msg.request} />
+              : <MessageBubble key={i} msg={msg} />
           ))}
           {typing && <TypingIndicator />}
           <div style={{ height: 8 }} />

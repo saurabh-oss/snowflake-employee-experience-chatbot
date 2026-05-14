@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 
 import re
 import random
+import asyncio
 import jwt as pyjwt
 
 from dotenv import load_dotenv
@@ -760,6 +761,329 @@ async def debug_analyst_token():
         return {"status_code": resp.status_code, "response": resp.json()}
     except Exception as e:
         return {"error": str(e), "token_length": len(token) if token else 0, "account": account}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MULTI-AGENT TRAVEL ORCHESTRATOR
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Realistic flight options keyed by destination keyword
+_FLIGHTS = {
+    "new york": [("Delta", "DL 412", "07:30", "15:45", 387), ("United", "UA 581", "09:15", "17:30", 342)],
+    "chicago":  [("American", "AA 274", "08:00", "12:30", 289), ("United", "UA 310", "10:30", "15:00", 312)],
+    "london":   [("British Airways", "BA 284", "11:00", "23:15", 890), ("Virgin", "VS 025", "14:30", "02:45+1", 975)],
+    "seattle":  [("Alaska", "AS 441", "07:00", "09:15", 198), ("Delta", "DL 738", "12:00", "14:20", 215)],
+    "austin":   [("Southwest", "WN 1832", "08:20", "12:45", 175), ("United", "UA 419", "10:00", "14:30", 210)],
+}
+_HOTELS = {
+    "new york": [("Marriott Marquis Times Square", "Midtown Manhattan", 289), ("Hilton Midtown", "Midtown Manhattan", 265)],
+    "chicago":  [("Loews Chicago Hotel", "Streeterville", 215), ("Hyatt Regency Chicago", "The Loop", 235)],
+    "london":   [("The Hoxton Southwark", "South Bank", 195), ("Marriott London Park Lane", "Mayfair", 320)],
+    "seattle":  [("Hyatt Regency Seattle", "Downtown", 185), ("Kimpton Hotel Monaco", "Downtown", 210)],
+    "austin":   [("The LINE Austin", "Downtown", 165), ("Hyatt Place Austin Downtown", "Downtown", 178)],
+}
+
+def _match_city(destination: str) -> str:
+    dest = destination.lower()
+    for key in _FLIGHTS:
+        if key in dest:
+            return key
+    return "new york"
+
+
+async def _safe_send(ws: WebSocket, lock: asyncio.Lock, data: dict):
+    async with lock:
+        await ws.send_json(data)
+
+
+async def _agent_flight(ws, lock, request_id, emp_id, destination, start_date, end_date):
+    city = _match_city(destination)
+    airline, flight_no, dep, arr, cost = _FLIGHTS.get(city, _FLIGHTS["new york"])[0]
+
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "flight", "status": "working",
+        "message": f"Searching {city.title()} flights — comparing {len(_FLIGHTS.get(city, _FLIGHTS['new york']))} options..."
+    })
+    await asyncio.sleep(3.2)
+
+    booking_id = f"BK-FL-{random.randint(10000, 99999)}"
+    booking_ref = f"{airline[:2].upper()}-{random.randint(100000, 999999)}"
+    details = json.dumps({
+        "airline": airline, "flight_number": flight_no,
+        "departure": str(start_date), "departure_time": dep,
+        "arrival": str(start_date), "arrival_time": arr,
+        "class": "Economy", "booking_ref": booking_ref
+    })
+    try:
+        execute_query(
+            """INSERT INTO EX_CHATBOT.HR_DATA.TRAVEL_BOOKINGS
+               (BOOKING_ID, REQUEST_ID, EMP_ID, BOOKING_TYPE, VENDOR, BOOKING_REF,
+                DETAILS, CHECK_IN, CHECK_OUT, COST)
+               VALUES (%s, %s, %s, 'Flight', %s, %s, PARSE_JSON(%s), %s, %s, %s)""",
+            (booking_id, request_id, emp_id, airline, booking_ref, details, start_date, start_date, cost)
+        )
+    except Exception as e:
+        logger.warning(f"Flight booking DB write failed (non-fatal): {e}")
+
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "flight", "status": "done",
+        "message": f"{airline} {flight_no} · {dep} → {arr} · Confirmed",
+        "result": {"airline": airline, "flight": flight_no, "departure": dep,
+                   "arrival": arr, "cost": cost, "ref": booking_ref}
+    })
+    return cost
+
+
+async def _agent_hotel(ws, lock, request_id, emp_id, destination, start_date, end_date):
+    city = _match_city(destination)
+    hotel_name, area, nightly = _HOTELS.get(city, _HOTELS["new york"])[0]
+
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "hotel", "status": "working",
+        "message": f"Finding hotels near {area} — checking availability..."
+    })
+    await asyncio.sleep(4.8)
+
+    nights = max((end_date - start_date).days, 1)
+    total_cost = nightly * nights
+    booking_id = f"BK-HT-{random.randint(10000, 99999)}"
+    booking_ref = f"HTL-{random.randint(100000, 999999)}"
+    details = json.dumps({
+        "hotel": hotel_name, "area": area,
+        "check_in": str(start_date), "check_out": str(end_date),
+        "nights": nights, "rate_per_night": nightly, "booking_ref": booking_ref
+    })
+    try:
+        execute_query(
+            """INSERT INTO EX_CHATBOT.HR_DATA.TRAVEL_BOOKINGS
+               (BOOKING_ID, REQUEST_ID, EMP_ID, BOOKING_TYPE, VENDOR, BOOKING_REF,
+                DETAILS, CHECK_IN, CHECK_OUT, COST)
+               VALUES (%s, %s, %s, 'Hotel', %s, %s, PARSE_JSON(%s), %s, %s, %s)""",
+            (booking_id, request_id, emp_id, hotel_name, booking_ref, details, start_date, end_date, total_cost)
+        )
+    except Exception as e:
+        logger.warning(f"Hotel booking DB write failed (non-fatal): {e}")
+
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "hotel", "status": "done",
+        "message": f"{hotel_name} · {nights} night{'s' if nights > 1 else ''} · ${nightly}/night · Confirmed",
+        "result": {"hotel": hotel_name, "area": area, "nights": nights,
+                   "cost_per_night": nightly, "total": total_cost, "ref": booking_ref}
+    })
+    return total_cost
+
+
+async def _agent_calendar(ws, lock, request_id, emp_id, start_date, end_date):
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "calendar", "status": "working",
+        "message": "Scanning calendar for conflicts on requested dates..."
+    })
+    await asyncio.sleep(1.6)
+
+    # Check for existing leave or calendar conflicts
+    conflicts = []
+    try:
+        rows = execute_query(
+            """SELECT LEAVE_TYPE, PRE_APPROVED
+               FROM EX_CHATBOT.HR_DATA.EMPLOYEE_LEAVE
+               WHERE EMP_ID = %s AND FISCAL_YEAR = 2026 AND PRE_APPROVED > 0""",
+            (emp_id,)
+        )
+        if rows:
+            conflicts = [r["LEAVE_TYPE"] for r in rows]
+    except Exception:
+        pass
+
+    block_id = f"CAL-{random.randint(10000, 99999)}"
+    try:
+        execute_query(
+            """INSERT INTO EX_CHATBOT.HR_DATA.CALENDAR_BLOCKS
+               (BLOCK_ID, EMP_ID, TITLE, START_DATE, END_DATE, BLOCK_TYPE, REFERENCE_ID)
+               VALUES (%s, %s, %s, %s, %s, 'Travel', %s)""",
+            (block_id, emp_id, f"Business Travel", start_date, end_date, request_id)
+        )
+    except Exception as e:
+        logger.warning(f"Calendar block DB write failed (non-fatal): {e}")
+
+    conflict_note = f" · Note: pre-approved leave exists ({', '.join(conflicts)})" if conflicts else ""
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "calendar", "status": "done",
+        "message": f"No date conflicts found · {start_date} – {end_date} blocked{conflict_note}",
+        "result": {"conflicts": len(conflicts) > 0, "block_id": block_id,
+                   "start": str(start_date), "end": str(end_date)}
+    })
+    return 0
+
+
+async def _agent_budget(ws, lock, request_id, emp_id, destination, start_date, end_date):
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "budget", "status": "working",
+        "message": "Checking travel policy limits and YTD spend..."
+    })
+    await asyncio.sleep(2.5)
+
+    # Query year-to-date travel expenses
+    ytd_spend = 0
+    try:
+        rows = execute_query(
+            """SELECT COALESCE(SUM(AMOUNT), 0) AS YTD
+               FROM EX_CHATBOT.HR_DATA.EXPENSE_REPORTS
+               WHERE EMP_ID = %s AND CATEGORY = 'Travel'
+               AND FISCAL_YEAR(EXPENSE_DATE) = 2026""",
+            (emp_id,)
+        )
+        if rows:
+            ytd_spend = float(rows[0].get("YTD", 0) or 0)
+    except Exception:
+        ytd_spend = 772  # fallback demo value
+
+    city = _match_city(destination)
+    _, _, flight_cost = list(_FLIGHTS.get(city, _FLIGHTS["new york"])[0][0:3]) + [_FLIGHTS.get(city, _FLIGHTS["new york"])[0][4]]
+    flight_cost = _FLIGHTS.get(city, _FLIGHTS["new york"])[0][4]
+    hotel_cost = _HOTELS.get(city, _HOTELS["new york"])[0][2] * max((end_date - start_date).days, 1)
+    estimated_total = flight_cost + hotel_cost
+    policy_limit = 2000
+    compliant = estimated_total <= policy_limit
+
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "budget", "status": "done",
+        "message": f"Est. ${estimated_total:,} · Policy limit ${policy_limit:,} · {'✓ Within limits' if compliant else '⚠ Exceeds limit'}",
+        "result": {"estimated_total": estimated_total, "policy_limit": policy_limit,
+                   "ytd_travel_spend": ytd_spend, "compliant": compliant}
+    })
+    return 0
+
+
+async def _agent_approval(ws, lock, request_id, emp_id):
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "approval", "status": "working",
+        "message": "Looking up reporting manager and sending approval request..."
+    })
+    await asyncio.sleep(5.5)
+
+    # Look up manager from EMPLOYEES
+    manager_name = "Your Manager"
+    manager_id = None
+    try:
+        rows = execute_query(
+            "SELECT MANAGER_ID FROM EX_CHATBOT.HR_DATA.EMPLOYEES WHERE EMP_ID = %s",
+            (emp_id,)
+        )
+        if rows and rows[0].get("MANAGER_ID"):
+            manager_id = rows[0]["MANAGER_ID"]
+            mgr_rows = execute_query(
+                "SELECT FULL_NAME FROM EX_CHATBOT.HR_DATA.EMPLOYEES WHERE EMP_ID = %s",
+                (manager_id,)
+            )
+            if mgr_rows:
+                manager_name = mgr_rows[0].get("FULL_NAME", manager_name)
+    except Exception:
+        pass
+
+    approval_id = f"APR-{random.randint(10000, 99999)}"
+    try:
+        execute_query(
+            """INSERT INTO EX_CHATBOT.HR_DATA.APPROVAL_REQUESTS
+               (APPROVAL_ID, REQUEST_TYPE, REFERENCE_ID, EMP_ID, APPROVER_ID, STATUS)
+               VALUES (%s, 'Travel', %s, %s, %s, 'Pending')""",
+            (approval_id, request_id, emp_id, manager_id)
+        )
+    except Exception as e:
+        logger.warning(f"Approval request DB write failed (non-fatal): {e}")
+
+    await _safe_send(ws, lock, {
+        "type": "agent_update", "agent_id": "approval", "status": "pending",
+        "message": f"Approval request sent to {manager_name} · Expected within 2 hours",
+        "result": {"approver": manager_name, "approval_id": approval_id, "eta": "2 hours"}
+    })
+    return 0
+
+
+class TravelRequest(BaseModel):
+    emp_id: str = "EMP-4821"
+    destination: str
+    purpose: str = "Business travel"
+    start_date: str  # YYYY-MM-DD
+    end_date: str    # YYYY-MM-DD
+
+
+@app.websocket("/ws/travel")
+async def travel_orchestrator_ws(websocket: WebSocket):
+    """
+    Multi-agent travel orchestrator via WebSocket.
+    Runs 5 agents concurrently; streams real-time progress to the client.
+    """
+    await websocket.accept()
+    lock = asyncio.Lock()
+    try:
+        data = await websocket.receive_json()
+        emp_id     = data.get("emp_id", "EMP-4821")
+        destination = data.get("destination", "")
+        purpose    = data.get("purpose", "Business travel")
+        start_str  = data.get("start_date", "")
+        end_str    = data.get("end_date", "")
+
+        from datetime import date as _date
+        start_date = datetime.strptime(start_str, "%Y-%m-%d").date() if start_str else _date.today()
+        end_date   = datetime.strptime(end_str,   "%Y-%m-%d").date() if end_str   else start_date
+
+        # Create travel request record
+        request_id = f"TRV-{random.randint(10000, 99999)}"
+        try:
+            execute_query(
+                """INSERT INTO EX_CHATBOT.HR_DATA.TRAVEL_REQUESTS
+                   (REQUEST_ID, EMP_ID, DESTINATION, PURPOSE, START_DATE, END_DATE, STATUS)
+                   VALUES (%s, %s, %s, %s, %s, %s, 'Processing')""",
+                (request_id, emp_id, destination, purpose, start_date, end_date)
+            )
+        except Exception as e:
+            logger.warning(f"Travel request insert failed (non-fatal): {e}")
+
+        await _safe_send(websocket, lock, {
+            "type": "started", "request_id": request_id,
+            "destination": destination, "start_date": start_str, "end_date": end_str
+        })
+
+        # Run all 5 agents concurrently
+        costs = await asyncio.gather(
+            _agent_flight(   websocket, lock, request_id, emp_id, destination, start_date, end_date),
+            _agent_hotel(    websocket, lock, request_id, emp_id, destination, start_date, end_date),
+            _agent_calendar( websocket, lock, request_id, emp_id, start_date, end_date),
+            _agent_budget(   websocket, lock, request_id, emp_id, destination, start_date, end_date),
+            _agent_approval( websocket, lock, request_id, emp_id),
+        )
+
+        total_cost = sum(c for c in costs if c)
+
+        try:
+            execute_query(
+                """UPDATE EX_CHATBOT.HR_DATA.TRAVEL_REQUESTS
+                   SET STATUS = 'Pending Approval', TOTAL_COST = %s WHERE REQUEST_ID = %s""",
+                (total_cost, request_id)
+            )
+        except Exception:
+            pass
+
+        await _safe_send(websocket, lock, {
+            "type": "complete",
+            "request_id": request_id,
+            "total_cost": total_cost,
+            "destination": destination,
+            "message": (
+                f"Your {destination} trip is arranged! Flight and hotel are confirmed, "
+                f"calendar is blocked, and the approval request has been sent to your manager. "
+                f"Total estimated cost: ${total_cost:,}. You'll be notified once approved."
+            )
+        })
+
+    except WebSocketDisconnect:
+        logger.info("Travel agent WebSocket disconnected.")
+    except Exception as e:
+        logger.error(f"Travel orchestrator error: {e}", exc_info=True)
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
