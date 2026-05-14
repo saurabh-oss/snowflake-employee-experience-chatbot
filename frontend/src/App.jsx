@@ -111,6 +111,9 @@ const Icons = {
   Chevron: () => (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
   ),
+  Sparkle: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+  ),
 };
 
 // ─── Source badge component ───
@@ -120,6 +123,7 @@ function SourceBadge({ source }) {
     analyst: { bg: "rgba(0,180,216,0.12)", border: "rgba(0,180,216,0.3)", text: "#00B4D8", icon: <Icons.Db /> },
     search:  { bg: "rgba(6,167,125,0.12)", border: "rgba(6,167,125,0.3)", text: "#06A77D", icon: <Icons.Source /> },
     action:  { bg: "rgba(255,183,3,0.12)", border: "rgba(255,183,3,0.3)", text: "#FFB703", icon: <Icons.Bolt /> },
+    agent:   { bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)", text: "#8B5CF6", icon: <Icons.Sparkle /> },
   };
   const c = colors[source.type] || colors.search;
 
@@ -712,11 +716,38 @@ export default function EXChatbot() {
         body: JSON.stringify({ message: text, emp_id: "EMP-4821", history })
       });
       const data = await res.json();
-      const sources = (data.tools_called || []).map(t => ({
-        type: t.tool === "cortex_analyst" ? "analyst" : t.tool === "cortex_search" ? "search" : "action",
-        label: t.tool === "cortex_analyst" ? `Cortex Analyst → SQL` : t.tool === "cortex_search" ? `Cortex Search (${t.results_count} results)` : t.tool,
-        detail: t.sql || `${t.results_count ?? ""} results retrieved`
-      }));
+
+      let sources = [];
+      if (data.via_cortex_agents) {
+        // Response came from the Cortex Agents API — one top-level agent badge
+        // plus one badge per tool the agent chose to invoke.
+        const toolNames = (data.tools_called || []).map(t => {
+          if (t.tool === "hr_data_analyst") return "Cortex Analyst";
+          if (t.tool === "policy_search")   return "Cortex Search";
+          return t.tool;
+        });
+        sources.push({
+          type: "agent",
+          label: `Cortex AI Agent · ${toolNames.join(" + ") || "Snowflake Intelligence"}`,
+          detail: `Native agent orchestration via /api/v2/cortex/agent:run · Tools selected autonomously: ${toolNames.join(", ") || "none"}`,
+        });
+        // Per-tool provenance badges
+        (data.tools_called || []).forEach(t => {
+          if (t.tool === "hr_data_analyst") {
+            sources.push({ type: "analyst", label: "Cortex Analyst → SQL", detail: t.sql || "Query executed" });
+          } else if (t.tool === "policy_search") {
+            sources.push({ type: "search", label: `Cortex Search · ${t.results_count ?? "?"} results`, detail: `${t.results_count ?? ""} policy document results` });
+          }
+        });
+      } else {
+        // Manual orchestration fallback — existing badge mapping
+        sources = (data.tools_called || []).map(t => ({
+          type: t.tool === "cortex_analyst" ? "analyst" : t.tool === "cortex_search" ? "search" : "action",
+          label: t.tool === "cortex_analyst" ? "Cortex Analyst → SQL" : t.tool === "cortex_search" ? `Cortex Search (${t.results_count} results)` : t.tool,
+          detail: t.sql || `${t.results_count ?? ""} results retrieved`,
+        }));
+      }
+
       setMessages(prev => [...prev, { role: "bot", text: data.response, sources, chips: [] }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: "bot", text: "⚠️ Could not reach the backend. Is it running?", sources: [], chips: [] }]);

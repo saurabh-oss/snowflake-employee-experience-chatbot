@@ -17,11 +17,39 @@
 
 | Snowflake Component | Role |
 |---|---|
+| **Cortex AI Agents API** | Native agent orchestration via `/api/v2/cortex/agent:run` — the LLM autonomously selects Cortex Search or Cortex Analyst per question |
 | **Cortex Search** | Hybrid (semantic + keyword) retrieval over 12 HR policy documents |
 | **Cortex Analyst** | Natural-language → governed SQL on 10 employee tables via a semantic model |
-| **Cortex COMPLETE** | LLM synthesis — combines retrieved context into a conversational answer |
-| **Cortex Agents (WebSocket)** | Multi-agent orchestration: 5 parallel async agents for travel automation |
+| **Cortex COMPLETE** | LLM synthesis fallback — used for action intents and when the Agents API is unavailable |
+| **Multi-agent WebSocket** | 5 parallel async agents for travel automation (custom orchestration for contrast) |
 | **Horizon Catalog** | Governance: column masking (salary, email), row-access policies, audit log |
+
+### How Cortex AI Agents powers the main chat
+
+All Q&A requests (leave balance, policy lookup, performance review, attrition trends, etc.) flow through the Cortex Agents REST API:
+
+```
+POST https://<account>.snowflakecomputing.com/api/v2/cortex/agent:run
+Authorization: Bearer <JWT>
+
+{
+  "model": "claude-sonnet-4",
+  "tools": [
+    { "tool_spec": { "type": "cortex_analyst_text_to_sql", "name": "hr_data_analyst",
+                     "semantic_model_file": "@.../04_semantic_model.yaml" } },
+    { "tool_spec": { "type": "cortex_search", "name": "policy_search",
+                     "cortex_search_service": "EX_CHATBOT.KNOWLEDGE_BASE.EX_POLICY_SEARCH" } }
+  ],
+  "messages": [...],
+  "stream": true
+}
+```
+
+The agent LLM decides which tool(s) to call based on the question — no manual intent classification or routing code is needed. Results stream back as SSE events which the backend buffers and returns as JSON. If the Agents API is unavailable (region, quota, preview access), the backend falls back transparently to the original manual orchestration.
+
+**In the UI**, responses from the Cortex Agents API show a purple ✦ **Cortex AI Agent** source badge with the tools the agent selected, followed by per-tool provenance badges (Cortex Analyst SQL, Cortex Search result count).
+
+**Action requests** (create IT ticket, submit leave, submit expense) bypass the Agents API because they write to Snowflake tables and need local parameter extraction — these go through the manual handlers and show yellow ⚡ Action badges.
 
 **Open-source stack:**
 

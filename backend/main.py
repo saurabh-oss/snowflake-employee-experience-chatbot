@@ -51,6 +51,9 @@ SNOWFLAKE_CONFIG = {
 }
 
 CORTEX_MODEL         = os.getenv("CORTEX_MODEL", "claude-sonnet-4-20250514")
+# Cortex Agents API model — defaults to the same model but can be overridden
+# (e.g. "claude-3-5-sonnet" if the newer model isn't yet available in your region's Agents API)
+CORTEX_AGENTS_MODEL  = os.getenv("CORTEX_AGENTS_MODEL", CORTEX_MODEL)
 CORTEX_SEARCH_SVC    = "EX_CHATBOT.KNOWLEDGE_BASE.EX_POLICY_SEARCH"
 SEMANTIC_MODEL_STAGE = os.getenv(
     "SEMANTIC_MODEL_STAGE",
@@ -203,6 +206,136 @@ def cortex_analyst(question: str, emp_id: str = None) -> dict:
                 return {"sql": generated_sql, "result": [], "explanation": f"SQL error: {e}"}
 
     return {"sql": None, "result": [], "explanation": explanation or "Could not generate a query."}
+
+
+async def call_cortex_agent_api(
+    question: str,
+    emp_id: str,
+    history: list = None,
+) -> dict:
+    """
+    Snowflake Cortex Agents REST API — Snowflake Intelligence native orchestration.
+
+    Sends a streaming request to /api/v2/cortex/agent:run with two registered tools:
+      - cortex_analyst_text_to_sql  → natural language to governed SQL via the semantic model
+      - cortex_search               → hybrid retrieval over HR policy documents
+
+    The agent LLM decides autonomously which tool(s) to invoke. No manual intent
+    classification is needed for Q&A; the model routes based on question semantics.
+    Streams SSE events and accumulates the full response text + tool usage for provenance.
+    """
+    account = SNOWFLAKE_CONFIG["account"]
+    url = f"https://{account}.snowflakecomputing.com/api/v2/cortex/agent:run"
+
+    # Build message history (last 6 turns for context)
+    messages = []
+    for h in (history or [])[-6:]:
+        messages.append({
+            "role": h["role"],
+            "content": [{"type": "text", "text": h["content"][:800]}]
+        })
+
+    # Embed employee identity and system instructions into the user turn
+    user_text = (
+        f"[System: {SYSTEM_PROMPT[:600]}]\n\n"
+        f"Employee ID: {emp_id}\n\n"
+        f"{question}"
+    )
+    messages.append({"role": "user", "content": [{"type": "text", "text": user_text}]})
+
+    payload = {
+        "model": CORTEX_AGENTS_MODEL,
+        "tools": [
+            {
+                "tool_spec": {
+                    "type": "cortex_analyst_text_to_sql",
+                    "name": "hr_data_analyst",
+                    "semantic_model_file": SEMANTIC_MODEL_STAGE,
+                }
+            },
+            {
+                "tool_spec": {
+                    "type": "cortex_search",
+                    "name": "policy_search",
+                    "cortex_search_service": CORTEX_SEARCH_SVC,
+                    "max_results": 5,
+                }
+            },
+        ],
+        "messages": messages,
+        "stream": True,
+    }
+
+    token = _make_jwt()
+    full_text = ""
+    tools_used = []
+
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        async with client.stream(
+            "POST", url,
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+                "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+            },
+        ) as resp:
+            resp.raise_for_status()
+
+            async for raw in resp.aiter_lines():
+                if not raw.startswith("data: "):
+                    continue
+                chunk = raw[6:].strip()
+                if not chunk or chunk == "[DONE]":
+                    continue
+                try:
+                    ev = json.loads(chunk)
+                except json.JSONDecodeError:
+                    continue
+
+                ev_type = ev.get("type", "")
+
+                # Accumulate streamed text tokens
+                if ev_type == "content_block_delta":
+                    delta = ev.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        full_text += delta.get("text", "")
+
+                # Record which tool the agent chose to invoke
+                elif ev_type == "tool_use_block_start":
+                    tu = ev.get("tool_use", {})
+                    tool_entry = {
+                        "tool": tu.get("name", "tool"),
+                        "via": "cortex_agent",
+                        "tool_use_id": tu.get("tool_use_id"),
+                    }
+                    tools_used.append(tool_entry)
+                    logger.info(f"Cortex Agent invoked tool: {tool_entry['tool']}")
+
+                # Extract generated SQL and result counts from tool responses
+                elif ev_type == "tool_result_block_delta":
+                    for r in ev.get("delta", {}).get("results", []):
+                        if r.get("type") == "json" and tools_used:
+                            content = r.get("json", {})
+                            last = tools_used[-1]
+                            if "sql" in content:
+                                last["sql"] = content["sql"]
+                            if "searchResults" in content:
+                                last["results_count"] = len(content["searchResults"])
+                            if "results" in content and isinstance(content["results"], list):
+                                last["results_count"] = len(content["results"])
+
+    if not full_text.strip():
+        raise ValueError("Cortex Agents API returned an empty response.")
+
+    logger.info(f"Cortex Agents API: {len(tools_used)} tool(s) called, {len(full_text)} chars response")
+    return {
+        "response": full_text.strip(),
+        "intent": "agent",
+        "tools_called": tools_used,
+        "via_cortex_agents": True,
+    }
 
 
 # ── Agent Orchestration ──────────────────────────────────────────────────
@@ -404,6 +537,42 @@ async def process_message(question: str, emp_id: str = "EMP-4821", session_id: s
     tools_called = []
     context_parts = []
     action_result = None
+
+    # ── Q&A intents → Cortex Agents API (Snowflake Intelligence) ────────────
+    # The agent autonomously selects Cortex Search or Cortex Analyst based on
+    # the question. Action intents (ticket/leave/expense) bypass this because
+    # they write to Snowflake tables and need local parameter extraction.
+    if intent not in ("action_ticket", "action_leave", "action_expense"):
+        try:
+            agent_result = await call_cortex_agent_api(question, emp_id, history)
+            latency_ms = int((time.time() - start) * 1000)
+            try:
+                log_interaction(
+                    session_id=session_id or str(uuid.uuid4()),
+                    emp_id=emp_id,
+                    user_message=question,
+                    agent_response=agent_result["response"],
+                    tools_called=agent_result["tools_called"],
+                    latency_ms=latency_ms,
+                )
+            except Exception as log_err:
+                logger.warning(f"Audit log failed (non-fatal): {log_err}")
+            return {
+                "response": agent_result["response"],
+                "intent": "agent",
+                "tools_called": agent_result["tools_called"],
+                "latency_ms": latency_ms,
+                "session_id": session_id,
+                "action_result": None,
+                "via_cortex_agents": True,
+            }
+        except Exception as agent_err:
+            logger.warning(
+                f"Cortex Agents API unavailable "
+                f"({type(agent_err).__name__}: {agent_err!s:.200}). "
+                f"Falling back to manual orchestration."
+            )
+            # Fall through — the existing if/elif chain below handles the request
 
     try:
         if intent == "analyst":
@@ -614,6 +783,7 @@ class ChatResponse(BaseModel):
     latency_ms: int
     session_id: Optional[str] = None
     action_result: Optional[dict] = None
+    via_cortex_agents: Optional[bool] = None
 
 class TicketRequest(BaseModel):
     emp_id: str
