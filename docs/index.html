@@ -4,17 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ask EX — Employee Experience AI Chatbot on Snowflake Cortex</title>
-  <meta name="description" content="Open-source AI-powered employee experience chatbot. Natural language answers for HR, IT, and analytics — 100% inside Snowflake's governed perimeter." />
+  <meta name="description" content="Open-source AI chatbot for employee experience — leave, reviews, IT tickets, L&D, travel automation, and more. Powered by Snowflake Cortex AI Agents, Cortex Search, and Cortex Analyst. 100% inside your governed data perimeter." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://saurabh-oss.github.io/snowflake-employee-experience-chatbot/" />
   <meta property="og:title" content="Ask EX — Employee Experience AI on Snowflake Cortex" />
-  <meta property="og:description" content="HR policies, leave balances, IT tickets, and team analytics answered in seconds. Built on Cortex Search + Cortex Analyst + Cortex COMPLETE." />
+  <meta property="og:description" content="HR policies, leave balances, performance reviews, IT tickets, and multi-agent travel automation — all governed inside Snowflake. Powered by Cortex AI Agents." />
   <meta property="og:image" content="https://saurabh-oss.github.io/snowflake-employee-experience-chatbot/og-image.svg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Ask EX — Employee Experience AI on Snowflake Cortex" />
-  <meta name="twitter:description" content="HR policies, leave balances, IT tickets, and team analytics answered in seconds. Built on Cortex Search + Cortex Analyst + Cortex COMPLETE." />
+  <meta name="twitter:description" content="HR policies, leave balances, performance reviews, IT tickets, and multi-agent travel automation — all governed inside Snowflake. Powered by Cortex AI Agents." />
   <meta name="twitter:image" content="https://saurabh-oss.github.io/snowflake-employee-experience-chatbot/og-image.svg" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23050a18'/><text y='.9em' font-size='80' x='10'>❄️</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,6 +30,7 @@
       --blue-dark: #0096B7;
       --green: #06A77D;
       --amber: #FFB703;
+      --purple: #8B5CF6;
       --white: #ffffff;
       --text: rgba(255,255,255,0.88);
       --muted: rgba(255,255,255,0.55);
@@ -50,7 +51,6 @@
       overflow-x: hidden;
     }
 
-    /* ── Noise texture overlay ── */
     body::before {
       content: '';
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -58,636 +58,211 @@
       opacity: 0.4;
     }
 
-    /* ── Nav ── */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      padding: 0 24px;
-      height: 60px;
+      padding: 0 24px; height: 60px;
       display: flex; align-items: center; justify-content: space-between;
       background: rgba(5,10,24,0.85);
       backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
     }
 
-    .nav-brand {
-      display: flex; align-items: center; gap: 10px;
-      text-decoration: none;
-    }
-
+    .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
     .nav-logo {
       width: 32px; height: 32px; border-radius: 8px;
       background: linear-gradient(135deg, var(--blue), var(--green));
       display: flex; align-items: center; justify-content: center;
     }
-
-    .nav-brand span {
-      font-size: 16px; font-weight: 700; color: var(--white);
-      letter-spacing: -0.3px;
-    }
-
-    .nav-links {
-      display: flex; align-items: center; gap: 8px; list-style: none;
-    }
-
-    .nav-links a {
-      text-decoration: none; color: var(--muted);
-      font-size: 13px; font-weight: 500;
-      padding: 6px 12px; border-radius: 8px;
-      transition: all 0.2s;
-    }
-
+    .nav-brand span { font-size: 16px; font-weight: 700; color: var(--white); letter-spacing: -0.3px; }
+    .nav-links { display: flex; align-items: center; gap: 8px; list-style: none; }
+    .nav-links a { text-decoration: none; color: var(--muted); font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 8px; transition: all 0.2s; }
     .nav-links a:hover { color: var(--white); background: var(--card); }
-
-    .nav-cta {
-      background: var(--blue) !important;
-      color: var(--bg) !important;
-      font-weight: 600 !important;
-      padding: 6px 16px !important;
-    }
-
+    .nav-cta { background: var(--blue) !important; color: var(--bg) !important; font-weight: 600 !important; padding: 6px 16px !important; }
     .nav-cta:hover { background: var(--blue-dark) !important; }
 
-    /* ── Section base ── */
     section { position: relative; z-index: 1; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
-
-    /* ── Hero ── */
-    .hero {
-      min-height: 100vh;
-      display: flex; align-items: center;
-      padding: 100px 0 60px;
-      overflow: hidden;
-    }
-
+    .hero { min-height: 100vh; display: flex; align-items: center; padding: 100px 0 60px; overflow: hidden; }
     .hero-bg {
       position: absolute; inset: 0;
       background:
         radial-gradient(ellipse 80% 60% at 60% 30%, rgba(41,181,232,0.08) 0%, transparent 60%),
         radial-gradient(ellipse 60% 50% at 20% 70%, rgba(6,167,125,0.06) 0%, transparent 50%);
     }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 60px;
-      align-items: center;
-    }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
 
     .hero-badge {
       display: inline-flex; align-items: center; gap: 8px;
       padding: 5px 12px; border-radius: 20px;
-      background: rgba(41,181,232,0.1);
-      border: 1px solid rgba(41,181,232,0.25);
+      background: rgba(41,181,232,0.1); border: 1px solid rgba(41,181,232,0.25);
       color: var(--blue); font-size: 12px; font-weight: 600;
-      letter-spacing: 0.5px; text-transform: uppercase;
-      margin-bottom: 24px;
+      letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 24px;
     }
+    .hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 8px var(--blue); animation: pulse 2s ease-in-out infinite; }
 
-    .hero-badge-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--blue);
-      box-shadow: 0 0 8px var(--blue);
-      animation: pulse 2s ease-in-out infinite;
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.8); }
-    }
+    .hero h1 { font-size: clamp(36px, 5vw, 58px); font-weight: 800; line-height: 1.1; letter-spacing: -1.5px; color: var(--white); margin-bottom: 20px; }
+    .hero h1 .gradient-text { background: linear-gradient(135deg, var(--blue) 0%, var(--green) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: 17px; color: var(--muted); line-height: 1.7; margin-bottom: 36px; max-width: 460px; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 
-    .hero h1 {
-      font-size: clamp(36px, 5vw, 58px);
-      font-weight: 800;
-      line-height: 1.1;
-      letter-spacing: -1.5px;
-      color: var(--white);
-      margin-bottom: 20px;
-    }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 12px; font-size: 14px; font-weight: 600; text-decoration: none; transition: all 0.2s; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); color: var(--white); box-shadow: 0 4px 24px rgba(41,181,232,0.3); }
+    .btn-primary:hover { box-shadow: 0 6px 32px rgba(41,181,232,0.45); transform: translateY(-1px); }
+    .btn-outline { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
 
-    .hero h1 .gradient-text {
-      background: linear-gradient(135deg, var(--blue) 0%, var(--green) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .hero-sub {
-      font-size: 17px; color: var(--muted);
-      line-height: 1.7; margin-bottom: 36px;
-      max-width: 460px;
-    }
-
-    .hero-actions {
-      display: flex; gap: 12px; flex-wrap: wrap;
-    }
-
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 12px 22px; border-radius: 12px;
-      font-size: 14px; font-weight: 600;
-      text-decoration: none; transition: all 0.2s;
-      cursor: pointer; border: none;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
-      color: var(--white);
-      box-shadow: 0 4px 24px rgba(41,181,232,0.3);
-    }
-
-    .btn-primary:hover {
-      box-shadow: 0 6px 32px rgba(41,181,232,0.45);
-      transform: translateY(-1px);
-    }
-
-    .btn-outline {
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    .btn-outline:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: rgba(255,255,255,0.2);
-    }
-
-    /* ── Chat Mockup ── */
     .chat-window {
       background: linear-gradient(160deg, #050a18 0%, #0a1628 40%, #0d1f35 100%);
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
-      overflow: hidden;
-      box-shadow:
-        0 0 0 1px rgba(41,181,232,0.1),
-        0 32px 80px rgba(0,0,0,0.6),
-        0 0 60px rgba(41,181,232,0.08);
+      border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(41,181,232,0.1), 0 32px 80px rgba(0,0,0,0.6), 0 0 60px rgba(41,181,232,0.08);
       font-family: 'Inter', sans-serif;
     }
-
-    .chat-titlebar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 14px;
-      background: rgba(0,0,0,0.3);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .chrome-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-    }
-
-    .chat-header {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 16px;
-      background: rgba(5,10,24,0.8);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .chat-avatar {
-      width: 30px; height: 30px; border-radius: 8px;
-      background: linear-gradient(135deg, rgba(41,181,232,0.2), rgba(6,167,125,0.15));
-      border: 1px solid rgba(41,181,232,0.2);
-      display: flex; align-items: center; justify-content: center;
-      color: #29B5E8; flex-shrink: 0;
-    }
-
+    .chat-titlebar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .chrome-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .chat-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(5,10,24,0.8); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .chat-avatar { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, rgba(41,181,232,0.2), rgba(6,167,125,0.15)); border: 1px solid rgba(41,181,232,0.2); display: flex; align-items: center; justify-content: center; color: #29B5E8; flex-shrink: 0; }
     .chat-header-info { flex: 1; }
     .chat-header-name { font-size: 13px; font-weight: 600; color: #fff; }
     .chat-status { display: flex; align-items: center; gap: 5px; margin-top: 1px; }
     .status-dot { width: 5px; height: 5px; border-radius: 50%; background: #06A77D; box-shadow: 0 0 6px #06A77D; }
     .status-text { font-size: 10px; color: rgba(255,255,255,0.55); }
-
     .chat-messages { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-    .msg-user {
-      display: flex; justify-content: flex-end;
-    }
-
-    .msg-user-bubble {
-      background: linear-gradient(135deg, #29B5E8, #0096B7);
-      color: #fff; font-size: 12px; line-height: 1.5;
-      padding: 10px 14px; border-radius: 16px 16px 4px 16px;
-      max-width: 80%;
-      box-shadow: 0 4px 16px rgba(41,181,232,0.2);
-    }
-
+    .msg-user { display: flex; justify-content: flex-end; }
+    .msg-user-bubble { background: linear-gradient(135deg, #29B5E8, #0096B7); color: #fff; font-size: 12px; line-height: 1.5; padding: 10px 14px; border-radius: 16px 16px 4px 16px; max-width: 80%; box-shadow: 0 4px 16px rgba(41,181,232,0.2); }
     .msg-bot { display: flex; gap: 8px; align-items: flex-start; }
-
-    .msg-bot-avatar {
-      width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-      background: linear-gradient(135deg, rgba(41,181,232,0.15), rgba(6,167,125,0.1));
-      border: 1px solid rgba(41,181,232,0.2);
-      display: flex; align-items: center; justify-content: center;
-      color: #29B5E8; margin-top: 2px;
-    }
-
-    .msg-bot-content {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 4px 16px 16px 16px;
-      padding: 12px 14px; max-width: 85%; flex: 1;
-    }
-
+    .msg-bot-avatar { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, rgba(41,181,232,0.15), rgba(6,167,125,0.1)); border: 1px solid rgba(41,181,232,0.2); display: flex; align-items: center; justify-content: center; color: #29B5E8; margin-top: 2px; }
+    .msg-bot-content { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px 16px 16px 16px; padding: 12px 14px; max-width: 85%; flex: 1; }
     .msg-text { font-size: 12px; color: rgba(255,255,255,0.88); line-height: 1.6; }
     .msg-text strong { color: #fff; }
 
-    .source-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 8px; border-radius: 6px; margin-top: 8px;
-      font-size: 10px; font-family: 'JetBrains Mono', monospace;
-      background: rgba(41,181,232,0.1);
-      border: 1px solid rgba(41,181,232,0.25);
-      color: #29B5E8;
-    }
+    .source-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; margin-top: 8px; font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+    .source-blue { background: rgba(41,181,232,0.1); border: 1px solid rgba(41,181,232,0.25); color: #29B5E8; }
+    .source-green { background: rgba(6,167,125,0.1); border: 1px solid rgba(6,167,125,0.25); color: #06A77D; }
+    .source-purple { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); color: #8B5CF6; }
 
-    .chat-input-row {
-      padding: 10px 14px 14px;
-      background: rgba(5,10,24,0.9);
-      border-top: 1px solid rgba(255,255,255,0.05);
-      display: flex; align-items: center; gap: 8px;
-    }
+    .chat-input-row { padding: 10px 14px 14px; background: rgba(5,10,24,0.9); border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 8px; }
+    .chat-input-box { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px 12px; font-size: 12px; color: rgba(255,255,255,0.5); font-family: inherit; }
+    .chat-send-btn { width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; background: linear-gradient(135deg, #29B5E8, #0096B7); display: flex; align-items: center; justify-content: center; color: #fff; }
 
-    .chat-input-box {
-      flex: 1; background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px; padding: 8px 12px;
-      font-size: 12px; color: rgba(255,255,255,0.5);
-      font-family: inherit;
-    }
-
-    .chat-send-btn {
-      width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
-      background: linear-gradient(135deg, #29B5E8, #0096B7);
-      display: flex; align-items: center; justify-content: center;
-      color: #fff;
-    }
-
-    /* ── Stats bar ── */
-    .stats-bar {
-      padding: 28px 0;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--bg2);
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1px;
-    }
-
-    .stat-item {
-      text-align: center;
-      padding: 0 24px;
-      border-right: 1px solid var(--border);
-    }
-
+    .stats-bar { padding: 28px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg2); }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; }
+    .stat-item { text-align: center; padding: 0 24px; border-right: 1px solid var(--border); }
     .stat-item:last-child { border-right: none; }
+    .stat-number { font-size: 28px; font-weight: 800; color: var(--blue); letter-spacing: -1px; line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-    .stat-number {
-      font-size: 28px; font-weight: 800; color: var(--blue);
-      letter-spacing: -1px; line-height: 1;
-    }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--blue); margin-bottom: 12px; }
+    .section-title { font-size: clamp(26px, 4vw, 38px); font-weight: 800; letter-spacing: -1px; color: var(--white); line-height: 1.15; margin-bottom: 16px; }
+    .section-sub { font-size: 16px; color: var(--muted); line-height: 1.7; max-width: 560px; }
 
-    .stat-label {
-      font-size: 12px; color: var(--muted); margin-top: 4px;
-    }
-
-    /* ── Section headers ── */
-    .section-label {
-      font-size: 11px; font-weight: 700; letter-spacing: 2px;
-      text-transform: uppercase; color: var(--blue); margin-bottom: 12px;
-    }
-
-    .section-title {
-      font-size: clamp(26px, 4vw, 38px);
-      font-weight: 800; letter-spacing: -1px;
-      color: var(--white); line-height: 1.15;
-      margin-bottom: 16px;
-    }
-
-    .section-sub {
-      font-size: 16px; color: var(--muted);
-      line-height: 1.7; max-width: 560px;
-    }
-
-    /* ── How it works ── */
     .how-it-works { padding: 100px 0; }
+    .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-top: 56px; }
+    .step-card { background: var(--bg2); padding: 32px 28px; position: relative; }
+    .step-number { font-size: 40px; font-weight: 800; color: var(--dim); line-height: 1; margin-bottom: 20px; font-family: 'JetBrains Mono', monospace; }
+    .step-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+    .step-card h3 { font-size: 16px; font-weight: 700; color: var(--white); margin-bottom: 10px; }
+    .step-card p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+    .step-tag { display: inline-block; margin-top: 16px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      margin-top: 56px;
-    }
-
-    .step-card {
-      background: var(--bg2);
-      padding: 36px 32px;
-      position: relative;
-    }
-
-    .step-number {
-      font-size: 48px; font-weight: 800;
-      color: var(--dim); line-height: 1;
-      margin-bottom: 20px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .step-icon {
-      width: 48px; height: 48px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 16px;
-    }
-
-    .step-card h3 {
-      font-size: 17px; font-weight: 700;
-      color: var(--white); margin-bottom: 10px;
-    }
-
-    .step-card p { font-size: 14px; color: var(--muted); line-height: 1.65; }
-
-    .step-tag {
-      display: inline-block; margin-top: 16px;
-      padding: 4px 10px; border-radius: 6px;
-      font-size: 11px; font-weight: 600;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* ── Features ── */
     .features { padding: 80px 0 100px; }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      margin-top: 56px;
-    }
-
-    .feature-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 28px;
-      transition: all 0.2s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .feature-card::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 2px;
-      opacity: 0; transition: opacity 0.2s;
-    }
-
+    .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 56px; }
+    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all 0.2s; position: relative; overflow: hidden; }
+    .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; opacity: 0; transition: opacity 0.2s; }
     .feature-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-2px); }
     .feature-card:hover::before { opacity: 1; }
     .feature-card.blue::before { background: linear-gradient(90deg, var(--blue), var(--green)); }
     .feature-card.green::before { background: linear-gradient(90deg, var(--green), var(--blue)); }
     .feature-card.amber::before { background: linear-gradient(90deg, var(--amber), var(--blue)); }
     .feature-card.purple::before { background: linear-gradient(90deg, #a78bfa, var(--blue)); }
-
-    .feature-icon {
-      width: 44px; height: 44px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 16px;
-    }
-
-    .feature-card h3 {
-      font-size: 16px; font-weight: 700;
-      color: var(--white); margin-bottom: 8px;
-    }
-
+    .feature-card.teal::before { background: linear-gradient(90deg, var(--green), var(--amber)); }
+    .feature-card.wide { grid-column: 1 / -1; background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,167,125,0.04)); border-color: rgba(139,92,246,0.15); }
+    .feature-card.wide::before { background: linear-gradient(90deg, var(--purple), var(--green)); }
+    .feature-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 16px; font-weight: 700; color: var(--white); margin-bottom: 8px; }
     .feature-card p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+    .feature-tag { display: inline-flex; align-items: center; gap: 4px; margin-top: 16px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .agent-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .agent-pill { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2); color: #a78bfa; }
 
-    .feature-tag {
-      display: inline-flex; align-items: center; gap: 4px;
-      margin-top: 16px; padding: 4px 10px; border-radius: 6px;
-      font-size: 11px; font-weight: 600;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* ── Architecture ── */
     .architecture { padding: 100px 0; background: var(--bg2); }
+    .arch-diagram { margin-top: 56px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
 
-    .arch-diagram {
-      margin-top: 56px;
-      border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-
-    /* ── Demo section ── */
     .demo-section { padding: 100px 0; }
+    .demo-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 60px; align-items: start; margin-top: 56px; }
+    .demo-scenarios { display: flex; flex-direction: column; gap: 10px; }
+    .demo-scenario { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); transition: all 0.2s; cursor: default; }
+    .demo-scenario:hover { border-color: rgba(41,181,232,0.25); background: rgba(41,181,232,0.04); }
+    .demo-scenario.featured { background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.2); }
+    .demo-scenario.featured:hover { border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.08); }
+    .demo-scenario-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+    .demo-scenario-title { font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 3px; }
+    .demo-scenario-desc { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+    .demo-tool { display: inline-block; margin-top: 5px; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+    .tool-blue { background: rgba(41,181,232,0.1); color: var(--blue); border: 1px solid rgba(41,181,232,0.2); }
+    .tool-green { background: rgba(6,167,125,0.1); color: var(--green); border: 1px solid rgba(6,167,125,0.2); }
+    .tool-amber { background: rgba(255,183,3,0.1); color: var(--amber); border: 1px solid rgba(255,183,3,0.2); }
+    .tool-purple { background: rgba(139,92,246,0.1); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2); }
 
-    .demo-grid {
-      display: grid;
-      grid-template-columns: 1fr 1.3fr;
-      gap: 60px;
-      align-items: center;
-      margin-top: 56px;
-    }
-
-    .demo-scenarios { display: flex; flex-direction: column; gap: 12px; }
-
-    .demo-scenario {
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 16px; border-radius: 12px;
-      background: var(--card); border: 1px solid var(--border);
-      transition: all 0.2s; cursor: default;
-    }
-
-    .demo-scenario:hover {
-      border-color: rgba(41,181,232,0.25);
-      background: rgba(41,181,232,0.04);
-    }
-
-    .demo-scenario-icon {
-      font-size: 22px; flex-shrink: 0; margin-top: 2px;
-    }
-
-    .demo-scenario-title {
-      font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 4px;
-    }
-
-    .demo-scenario-desc {
-      font-size: 12px; color: var(--muted); line-height: 1.5;
-    }
-
-    .demo-tool {
-      display: inline-block; margin-top: 6px;
-      padding: 2px 8px; border-radius: 4px;
-      font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 500;
-      background: rgba(41,181,232,0.1); color: var(--blue);
-      border: 1px solid rgba(41,181,232,0.2);
-    }
-
-    /* ── Security ── */
     .security { padding: 100px 0; }
-
-    .security-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 60px;
-      align-items: start;
-      margin-top: 56px;
-    }
-
+    .security-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; margin-top: 56px; }
     .security-layers { display: flex; flex-direction: column; gap: 2px; }
-
-    .security-layer {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 16px; border-radius: 10px;
-      background: var(--card); border: 1px solid var(--border);
-      transition: all 0.2s;
-    }
-
+    .security-layer { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); transition: all 0.2s; }
     .security-layer:hover { border-color: rgba(6,167,125,0.3); background: rgba(6,167,125,0.04); }
-
-    .layer-number {
-      width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
-      background: rgba(6,167,125,0.15); border: 1px solid rgba(6,167,125,0.3);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: var(--green);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
+    .layer-number { width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0; background: rgba(6,167,125,0.15); border: 1px solid rgba(6,167,125,0.3); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--green); font-family: 'JetBrains Mono', monospace; }
     .layer-info { flex: 1; }
     .layer-title { font-size: 13px; font-weight: 600; color: var(--white); }
     .layer-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
-    .security-callout {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 28px;
-    }
-
-    .callout-title {
-      font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 16px;
-      display: flex; align-items: center; gap: 8px;
-    }
-
-    .callout-item {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-
+    .security-callout { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
+    .callout-title { font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .callout-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
     .callout-item:last-child { border-bottom: none; }
-
     .callout-check { color: var(--green); flex-shrink: 0; margin-top: 1px; }
     .callout-text { color: var(--muted); }
     .callout-text strong { color: var(--text); }
 
-    /* ── Quick start ── */
     .quickstart { padding: 100px 0; background: var(--bg2); }
-
-    .steps-list {
-      display: flex; flex-direction: column; gap: 24px;
-      margin-top: 56px; max-width: 720px;
-    }
-
+    .steps-list { display: flex; flex-direction: column; gap: 24px; margin-top: 56px; max-width: 720px; }
     .qs-step { display: flex; gap: 20px; align-items: flex-start; }
-
-    .qs-number {
-      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 700; color: var(--white);
-      box-shadow: 0 4px 16px rgba(41,181,232,0.3);
-    }
-
+    .qs-number { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; background: linear-gradient(135deg, var(--blue), var(--blue-dark)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--white); box-shadow: 0 4px 16px rgba(41,181,232,0.3); }
     .qs-content { flex: 1; }
     .qs-title { font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 8px; }
-
-    .code-block {
-      background: rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px;
-      padding: 14px 16px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: rgba(255,255,255,0.8);
-      line-height: 1.7;
-      overflow-x: auto;
-      margin-top: 10px;
-    }
-
+    .code-block { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.7; overflow-x: auto; margin-top: 10px; }
     .code-block .comment { color: #6a9955; }
     .code-block .cmd { color: #9cdcfe; }
     .code-block .str { color: #ce9178; }
 
-    /* ── CTA ── */
-    .cta-section {
-      padding: 100px 0;
-      text-align: center;
-      background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(41,181,232,0.07) 0%, transparent 70%);
-    }
-
+    .cta-section { padding: 100px 0; text-align: center; background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(41,181,232,0.07) 0%, transparent 70%); }
     .cta-section .section-title { margin: 0 auto 12px; }
     .cta-section .section-sub { margin: 0 auto 36px; text-align: center; }
+    .cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
-    .cta-actions {
-      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-    }
-
-    /* ── Footer ── */
-    footer {
-      background: var(--bg);
-      border-top: 1px solid var(--border);
-      padding: 40px 0;
-    }
-
-    .footer-inner {
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 16px;
-    }
-
-    .footer-left {
-      display: flex; align-items: center; gap: 10px;
-    }
-
-    .footer-logo {
-      width: 28px; height: 28px; border-radius: 6px;
-      background: linear-gradient(135deg, var(--blue), var(--green));
-      display: flex; align-items: center; justify-content: center;
-    }
-
+    footer { background: var(--bg); border-top: 1px solid var(--border); padding: 40px 0; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .footer-left { display: flex; align-items: center; gap: 10px; }
+    .footer-logo { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--blue), var(--green)); display: flex; align-items: center; justify-content: center; }
     .footer-name { font-size: 14px; font-weight: 600; color: var(--text); }
     .footer-sub { font-size: 12px; color: var(--muted); }
-
-    .footer-links {
-      display: flex; gap: 20px; list-style: none;
-    }
-
-    .footer-links a {
-      font-size: 12px; color: var(--muted); text-decoration: none;
-      transition: color 0.2s;
-    }
-
+    .footer-links { display: flex; gap: 20px; list-style: none; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
     .footer-links a:hover { color: var(--blue); }
 
-    /* ── Responsive ── */
     @media (max-width: 900px) {
       .hero-grid { grid-template-columns: 1fr; gap: 40px; }
       .chat-window { display: none; }
       .features-grid { grid-template-columns: 1fr; }
-      .steps-grid { grid-template-columns: 1fr; }
+      .feature-card.wide { grid-column: 1; }
+      .steps-grid { grid-template-columns: 1fr 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .demo-grid { grid-template-columns: 1fr; }
       .security-grid { grid-template-columns: 1fr; }
       .footer-inner { flex-direction: column; align-items: flex-start; }
       .nav-links { display: none; }
+    }
+    @media (max-width: 600px) {
+      .steps-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -698,10 +273,8 @@
   <a class="nav-brand" href="#">
     <div class="nav-logo">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
-        <line x1="12" y1="2" x2="12" y2="22"/>
-        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-        <line x1="2" y1="12" x2="22" y2="12"/>
-        <line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/>
+        <line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        <line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/>
         <circle cx="12" cy="12" r="2" fill="white" opacity="0.4"/>
       </svg>
     </div>
@@ -710,6 +283,7 @@
   <ul class="nav-links">
     <li><a href="#how-it-works">How it works</a></li>
     <li><a href="#features">Features</a></li>
+    <li><a href="#demo">Demo</a></li>
     <li><a href="#security">Security</a></li>
     <li><a href="#quickstart">Quick Start</a></li>
     <li><a href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot" class="nav-cta">View on GitHub</a></li>
@@ -724,7 +298,7 @@
       <div class="hero-content">
         <div class="hero-badge">
           <div class="hero-badge-dot"></div>
-          Open Source · MIT License
+          Open Source · Cortex AI Agents
         </div>
         <h1>
           Employee experience,<br />
@@ -732,7 +306,8 @@
         </h1>
         <p class="hero-sub">
           AI-powered HR &amp; IT assistant built entirely on <strong>Snowflake Cortex</strong>.
-          Natural language → leave balances, HR policies, IT tickets, and team analytics —
+          The native <strong>Cortex AI Agents API</strong> autonomously orchestrates Search and Analyst —
+          leave balances, policy lookups, performance reviews, IT tickets, and multi-agent travel automation,
           all inside your governed data perimeter.
         </p>
         <div class="hero-actions">
@@ -740,16 +315,13 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/></svg>
             GitHub Repository
           </a>
-          <a class="btn btn-outline" href="#quickstart">
-            Quick Start →
-          </a>
+          <a class="btn btn-outline" href="#quickstart">Quick Start →</a>
         </div>
       </div>
 
       <!-- Chat UI Mockup -->
       <div>
         <div class="chat-window">
-          <!-- Browser chrome -->
           <div class="chat-titlebar">
             <div class="chrome-dot" style="background:#FF5F57;"></div>
             <div class="chrome-dot" style="background:#FEBC2E;"></div>
@@ -758,69 +330,60 @@
               <span style="font-size:10px; color:rgba(255,255,255,0.3); font-family:'JetBrains Mono',monospace;">localhost:3000</span>
             </div>
           </div>
-          <!-- App header -->
           <div class="chat-header">
             <div class="chat-avatar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                <line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/>
-                <circle cx="12" cy="12" r="2" fill="currentColor" opacity="0.3"/>
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/><circle cx="12" cy="12" r="2" fill="currentColor" opacity="0.3"/></svg>
             </div>
             <div class="chat-header-info">
               <div class="chat-header-name">Ask EX</div>
               <div class="chat-status">
                 <div class="status-dot"></div>
-                <span class="status-text">Connected · Snowflake Intelligence</span>
+                <span class="status-text">Connected · Cortex AI Agents API</span>
               </div>
             </div>
             <div style="padding:3px 8px; border-radius:12px; background:rgba(6,167,125,0.1); border:1px solid rgba(6,167,125,0.2); font-size:10px; color:#06A77D; font-weight:600;">Governed</div>
           </div>
-          <!-- Messages -->
           <div class="chat-messages">
             <div class="msg-user">
               <div class="msg-user-bubble">How many leave days do I have left this year?</div>
             </div>
             <div class="msg-bot">
               <div class="msg-bot-avatar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                  <line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/>
-                </svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/></svg>
               </div>
               <div class="msg-bot-content">
-                <div class="msg-text">You have <strong>9 days</strong> of annual leave remaining for FY26:<br/><br/>• <strong>Entitled:</strong> 20 days<br/>• <strong>Taken:</strong> 8 days<br/>• <strong>Pre-approved:</strong> 3 days (May 19–21)<br/>• <strong>Available:</strong> 9 days<br/><br/>Your carry-forward limit is 5 days — use them before Sep 30.</div>
-                <div class="source-badge">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                  Cortex Analyst → SQL · 2 rows
+                <div class="msg-text">Your <strong>FY2026 leave balance</strong>:<br/><br/>• Annual: 20 entitled · 8 taken · <strong>9 available</strong><br/>• Sick: 10 entitled · 2 taken · <strong>8 available</strong><br/>• Bereavement: 3 · 0 taken · <strong>3 available</strong><br/><br/>3 days pre-approved (May 19–21). Carry-forward deadline Dec 31.</div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+                  <span class="source-badge source-purple">✦ Cortex AI Agent · hr_data_analyst</span>
                 </div>
+                <span class="source-badge source-blue" style="margin-top:4px;">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                  Cortex Analyst → SQL · 3 rows
+                </span>
               </div>
             </div>
             <div class="msg-user">
-              <div class="msg-user-bubble">What's the remote work from abroad policy?</div>
+              <div class="msg-user-bubble">What's the parental leave policy?</div>
             </div>
             <div class="msg-bot">
               <div class="msg-bot-avatar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                  <line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/>
-                </svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/></svg>
               </div>
               <div class="msg-bot-content">
-                <div class="msg-text">Per <strong>Global Mobility Policy v4.2 §3.1</strong>, you can work from an approved country for up to <strong>30 calendar days/year</strong>, with manager approval and tax desk pre-clearance for stays &gt; 14 days.</div>
-                <div class="source-badge" style="background:rgba(6,167,125,0.1); border-color:rgba(6,167,125,0.25); color:#06A77D;">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  Cortex Search → Policy · 3 results
+                <div class="msg-text">Per <strong>Parental Leave Policy §2.1</strong>: primary caregivers receive <strong>16 weeks</strong> fully paid; secondary caregivers <strong>4 weeks</strong>. Phased return (50% for 4 weeks) available.</div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+                  <span class="source-badge source-purple">✦ Cortex AI Agent · policy_search</span>
                 </div>
+                <span class="source-badge source-green" style="margin-top:4px;">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Cortex Search → Policy · 4 results
+                </span>
               </div>
             </div>
           </div>
-          <!-- Input -->
           <div class="chat-input-row">
             <div class="chat-input-box">Ask anything about work…</div>
-            <div class="chat-send-btn">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </div>
+            <div class="chat-send-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
           </div>
         </div>
       </div>
@@ -837,12 +400,12 @@
         <div class="stat-label">Inside Snowflake perimeter</div>
       </div>
       <div class="stat-item">
-        <div class="stat-number">3</div>
-        <div class="stat-label">Cortex AI tools combined</div>
+        <div class="stat-number">5</div>
+        <div class="stat-label">Cortex AI components</div>
       </div>
       <div class="stat-item">
-        <div class="stat-number">&lt;15s</div>
-        <div class="stat-label">Warm response latency</div>
+        <div class="stat-number">7</div>
+        <div class="stat-label">Demo scenarios included</div>
       </div>
       <div class="stat-item">
         <div class="stat-number">MIT</div>
@@ -856,36 +419,45 @@
 <section class="how-it-works" id="how-it-works">
   <div class="container">
     <div class="section-label">How it works</div>
-    <h2 class="section-title">Three Cortex tools,<br/>one conversational answer</h2>
-    <p class="section-sub">Every question is classified by intent, routed to the right tool, and synthesised into a grounded, cited response — all inside Snowflake.</p>
+    <h2 class="section-title">Native Cortex AI Agents<br/>orchestrate everything</h2>
+    <p class="section-sub">A single REST call to <code style="font-family:'JetBrains Mono',monospace; font-size:14px; color:var(--blue);">/api/v2/cortex/agent:run</code> gives the LLM two tools and lets it decide what to use — no hand-rolled routing needed.</p>
 
     <div class="steps-grid">
       <div class="step-card">
         <div class="step-number">01</div>
-        <div class="step-icon" style="background:rgba(41,181,232,0.1); border:1px solid rgba(41,181,232,0.2);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div class="step-icon" style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="color:#8B5CF6;"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
         </div>
-        <h3>Cortex Search</h3>
-        <p>Hybrid semantic + keyword retrieval over HR policies, handbooks, and KB articles. Finds the right paragraphs across thousands of documents in milliseconds.</p>
-        <span class="step-tag" style="background:rgba(41,181,232,0.1); color:#29B5E8; border:1px solid rgba(41,181,232,0.2);">Policy questions</span>
+        <h3>Cortex AI Agents API</h3>
+        <p>The LLM receives Cortex Search and Cortex Analyst as registered tools and autonomously decides which to invoke — or both — based on the employee's question. No intent classification code.</p>
+        <span class="step-tag" style="background:rgba(139,92,246,0.1); color:#a78bfa; border:1px solid rgba(139,92,246,0.2);">All Q&amp;A questions</span>
       </div>
-      <div class="step-card" style="border-left:1px solid var(--border); border-right:1px solid var(--border);">
+      <div class="step-card" style="border-left:1px solid var(--border);">
         <div class="step-number">02</div>
         <div class="step-icon" style="background:rgba(6,167,125,0.1); border:1px solid rgba(6,167,125,0.2);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3>Cortex Search</h3>
+        <p>Hybrid semantic + keyword retrieval over 12 HR policy documents. The agent calls this tool when it identifies a policy, procedure, or benefits question.</p>
+        <span class="step-tag" style="background:rgba(6,167,125,0.1); color:#06A77D; border:1px solid rgba(6,167,125,0.2);">Policy questions</span>
+      </div>
+      <div class="step-card" style="border-left:1px solid var(--border);">
+        <div class="step-number">03</div>
+        <div class="step-icon" style="background:rgba(41,181,232,0.1); border:1px solid rgba(41,181,232,0.2);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
         </div>
         <h3>Cortex Analyst</h3>
-        <p>Translates natural language into governed SQL via a declarative semantic model — querying leave balances, ticket counts, attrition rates, and headcount data live.</p>
-        <span class="step-tag" style="background:rgba(6,167,125,0.1); color:#06A77D; border:1px solid rgba(6,167,125,0.2);">Data questions</span>
+        <p>Translates natural language to governed SQL via a YAML semantic model — leave balances, ticket counts, attrition rates, L&amp;D budgets, and performance ratings.</p>
+        <span class="step-tag" style="background:rgba(41,181,232,0.1); color:#29B5E8; border:1px solid rgba(41,181,232,0.2);">Data questions</span>
       </div>
-      <div class="step-card">
-        <div class="step-number">03</div>
-        <div class="step-icon" style="background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.2);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z"/><path d="M12 8v4l3 3"/></svg>
+      <div class="step-card" style="border-left:1px solid var(--border);">
+        <div class="step-number">04</div>
+        <div class="step-icon" style="background:rgba(255,183,3,0.1); border:1px solid rgba(255,183,3,0.2);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFB703" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         </div>
-        <h3>Cortex COMPLETE</h3>
-        <p>An LLM synthesises retrieved policy text and query results into a single, concise, human-readable answer with cited sources — never fabricating data.</p>
-        <span class="step-tag" style="background:rgba(167,139,250,0.1); color:#a78bfa; border:1px solid rgba(167,139,250,0.2);">All questions</span>
+        <h3>Action Handlers</h3>
+        <p>For write operations (raise IT ticket, submit leave, log expense), the backend extracts parameters via Cortex COMPLETE and executes governed INSERTs into Snowflake — returning confirmed IDs.</p>
+        <span class="step-tag" style="background:rgba(255,183,3,0.1); color:#FFB703; border:1px solid rgba(255,183,3,0.2);">Action requests</span>
       </div>
     </div>
   </div>
@@ -896,7 +468,7 @@
   <div class="container">
     <div class="section-label">Capabilities</div>
     <h2 class="section-title">Built for enterprise<br/>employee experience</h2>
-    <p class="section-sub">Everything HR and IT teams need, governed at the data layer.</p>
+    <p class="section-sub">From policy lookups to process automation — governed at the data layer, with a full audit trail on every interaction.</p>
 
     <div class="features-grid">
       <div class="feature-card blue">
@@ -904,8 +476,8 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
         <h3>Leave &amp; Time Off</h3>
-        <p>Employees can instantly check leave balances, entitlements, carry-forward status, and pre-approved days. Data is filtered by the requesting employee's ID — no one can see someone else's balance.</p>
-        <span class="feature-tag" style="background:rgba(41,181,232,0.1); color:#29B5E8; border:1px solid rgba(41,181,232,0.2);">Cortex Analyst + Row Policy</span>
+        <p>Check leave balances, entitlements, carry-forward status, and pre-approved days — filtered by the requesting employee's ID. Submit leave requests directly from chat (writes to Snowflake).</p>
+        <span class="feature-tag" style="background:rgba(41,181,232,0.1); color:#29B5E8; border:1px solid rgba(41,181,232,0.2);">Cortex Analyst + Row Policy + Action</span>
       </div>
 
       <div class="feature-card green">
@@ -913,8 +485,8 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </div>
         <h3>Policy &amp; Compliance</h3>
-        <p>Searches across Global Mobility, Annual Leave, Acceptable Use, and Code of Conduct policies using hybrid semantic + keyword retrieval. Returns the relevant paragraph with the policy name and section cited.</p>
-        <span class="feature-tag" style="background:rgba(6,167,125,0.1); color:#06A77D; border:1px solid rgba(6,167,125,0.2);">Cortex Search</span>
+        <p>Searches across 12 HR policies — parental leave, RSU vesting, expense limits, mental health EAP, referral bonuses, and more — with hybrid semantic + keyword retrieval and section-level citations.</p>
+        <span class="feature-tag" style="background:rgba(6,167,125,0.1); color:#06A77D; border:1px solid rgba(6,167,125,0.2);">Cortex Search · 12 policy docs</span>
       </div>
 
       <div class="feature-card amber">
@@ -922,17 +494,46 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFB703" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         </div>
         <h3>IT Support</h3>
-        <p>Employees can look up their open tickets, check resolution status, and raise new incidents. The chatbot uses the IT Acceptable Use Policy to suggest self-service fixes before escalating.</p>
-        <span class="feature-tag" style="background:rgba(255,183,3,0.1); color:#FFB703; border:1px solid rgba(255,183,3,0.2);">Cortex Search + Analyst</span>
+        <p>Raise IT tickets from natural language descriptions — the LLM extracts category, subcategory, and priority, then INSERTs directly into IT_TICKETS. Check open tickets and resolution status.</p>
+        <span class="feature-tag" style="background:rgba(255,183,3,0.1); color:#FFB703; border:1px solid rgba(255,183,3,0.2);">Cortex Search + Action → IT_TICKETS</span>
       </div>
 
       <div class="feature-card purple">
         <div class="feature-icon" style="background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.2);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <h3>Performance &amp; L&amp;D</h3>
+        <p>Query H1 and Annual review status, self-ratings, manager ratings, and goal completion. Check L&amp;D budget utilisation — annual budget, used, committed (e.g., AWS re:Invent), and remaining.</p>
+        <span class="feature-tag" style="background:rgba(167,139,250,0.1); color:#a78bfa; border:1px solid rgba(167,139,250,0.2);">Cortex Analyst → PERFORMANCE_REVIEWS · LEARNING_BUDGET</span>
+      </div>
+
+      <div class="feature-card teal">
+        <div class="feature-icon" style="background:rgba(6,167,125,0.1); border:1px solid rgba(6,167,125,0.2);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         </div>
         <h3>Manager Analytics</h3>
-        <p>Managers get quarterly attrition rates, headcount trends, exit reason breakdowns, and comparison against org-wide averages — all filtered by their MANAGER_ID automatically.</p>
-        <span class="feature-tag" style="background:rgba(167,139,250,0.1); color:#a78bfa; border:1px solid rgba(167,139,250,0.2);">Cortex Analyst + RBAC</span>
+        <p>Quarterly attrition rates, headcount trends, exit reason breakdowns, and comparison against org-wide averages — all automatically filtered to the manager's team via MANAGER_ID.</p>
+        <span class="feature-tag" style="background:rgba(6,167,125,0.1); color:#06A77D; border:1px solid rgba(6,167,125,0.2);">Cortex Analyst + RBAC</span>
+      </div>
+
+      <div class="feature-card wide purple">
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div class="feature-icon" style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2); flex-shrink:0;">
+            <span style="font-size:22px;">🌍</span>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <h3>Multi-Agent Travel Automation ⭐</h3>
+            <p>One travel request triggers five parallel agents via <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#a78bfa;">asyncio.gather()</code>. Each agent works independently and reports back as it finishes — calendar conflict check, budget validation, flight booking, hotel booking, and manager approval routing — all in ~6 seconds.</p>
+          </div>
+        </div>
+        <div class="agent-pills">
+          <span class="agent-pill">📅 Calendar — 1.8s</span>
+          <span class="agent-pill">💰 Budget — 2.8s</span>
+          <span class="agent-pill">✈️ Flight — 3.5s</span>
+          <span class="agent-pill">🏨 Hotel — 4.5s</span>
+          <span class="agent-pill">✅ Approval — 5.5s</span>
+        </div>
+        <span class="feature-tag" style="background:rgba(139,92,246,0.1); color:#a78bfa; border:1px solid rgba(139,92,246,0.2);">WebSocket · asyncio.gather() · TRAVEL_REQUESTS · TRAVEL_BOOKINGS · APPROVAL_REQUESTS</span>
       </div>
     </div>
   </div>
@@ -943,13 +544,12 @@
   <div class="container">
     <div class="section-label">Architecture</div>
     <h2 class="section-title">Everything stays<br/>inside Snowflake</h2>
-    <p class="section-sub">No data movement to external AI services. Cortex runs inference on Snowflake-managed GPUs in your chosen region.</p>
+    <p class="section-sub">No data movement to external AI services. The Cortex AI Agents API, Cortex Search, and Cortex Analyst all run on Snowflake-managed infrastructure in your region.</p>
   </div>
 
   <div class="container">
     <div class="arch-diagram">
-      <svg viewBox="0 0 1060 420" xmlns="http://www.w3.org/2000/svg" style="width:100%; display:block; background:#0a1628;">
-        <!-- Background grid -->
+      <svg viewBox="0 0 1060 460" xmlns="http://www.w3.org/2000/svg" style="width:100%; display:block; background:#0a1628;">
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
@@ -962,86 +562,92 @@
             <stop offset="0%" style="stop-color:#06A77D;stop-opacity:1"/>
             <stop offset="100%" style="stop-color:#04896A;stop-opacity:1"/>
           </linearGradient>
+          <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#6D28D9;stop-opacity:1"/>
+          </linearGradient>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="rgba(41,181,232,0.6)"/>
           </marker>
+          <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="rgba(139,92,246,0.7)"/>
+          </marker>
         </defs>
-        <rect width="1060" height="420" fill="#0a1628"/>
-        <rect width="1060" height="420" fill="url(#grid)"/>
+        <rect width="1060" height="460" fill="#0a1628"/>
+        <rect width="1060" height="460" fill="url(#grid)"/>
 
         <!-- Snowflake perimeter box -->
-        <rect x="320" y="30" width="720" height="360" rx="12"
-              fill="rgba(41,181,232,0.03)" stroke="rgba(41,181,232,0.15)" stroke-width="1" stroke-dasharray="6,4"/>
-        <text x="340" y="54" font-family="Inter,sans-serif" font-size="11" fill="rgba(41,181,232,0.5)" font-weight="600" letter-spacing="1">SNOWFLAKE PERIMETER</text>
+        <rect x="300" y="20" width="740" height="420" rx="12" fill="rgba(41,181,232,0.02)" stroke="rgba(41,181,232,0.15)" stroke-width="1" stroke-dasharray="6,4"/>
+        <text x="320" y="44" font-family="Inter,sans-serif" font-size="11" fill="rgba(41,181,232,0.5)" font-weight="600" letter-spacing="1">SNOWFLAKE PERIMETER</text>
 
-        <!-- Employee box -->
-        <rect x="20" y="160" width="160" height="100" rx="12"
-              fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-        <text x="100" y="198" font-family="Inter,sans-serif" font-size="22" text-anchor="middle" fill="white">👤</text>
-        <text x="100" y="222" font-family="Inter,sans-serif" font-size="13" font-weight="600" text-anchor="middle" fill="white">Employee</text>
-        <text x="100" y="240" font-family="Inter,sans-serif" font-size="11" text-anchor="middle" fill="rgba(255,255,255,0.45)">Natural language</text>
+        <!-- Employee -->
+        <rect x="20" y="180" width="140" height="90" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <text x="90" y="214" font-family="Inter,sans-serif" font-size="20" text-anchor="middle" fill="white">👤</text>
+        <text x="90" y="236" font-family="Inter,sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="white">Employee</text>
+        <text x="90" y="254" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.45)">Natural language</text>
 
-        <!-- Arrow: Employee → Backend -->
-        <line x1="180" y1="210" x2="348" y2="210" stroke="rgba(41,181,232,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
-        <text x="264" y="202" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.3)">question</text>
+        <!-- Arrow: Employee → FastAPI -->
+        <line x1="160" y1="225" x2="298" y2="225" stroke="rgba(41,181,232,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="229" y="217" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(255,255,255,0.3)">question</text>
 
-        <!-- Backend box -->
-        <rect x="350" y="140" width="200" height="140" rx="12"
-              fill="rgba(41,181,232,0.08)" stroke="rgba(41,181,232,0.3)" stroke-width="1.5"/>
-        <text x="450" y="175" font-family="Inter,sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="white">FastAPI Backend</text>
-        <text x="450" y="197" font-family="Inter,sans-serif" font-size="11" text-anchor="middle" fill="rgba(255,255,255,0.5)">Intent classification</text>
-        <rect x="370" y="210" width="160" height="26" rx="6" fill="rgba(41,181,232,0.15)"/>
-        <text x="450" y="228" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" fill="#29B5E8">Route → Tool</text>
-        <text x="450" y="262" font-family="Inter,sans-serif" font-size="11" text-anchor="middle" fill="rgba(255,255,255,0.45)">Python + httpx</text>
+        <!-- FastAPI Backend -->
+        <rect x="300" y="165" width="160" height="120" rx="12" fill="rgba(41,181,232,0.06)" stroke="rgba(41,181,232,0.25)" stroke-width="1.5"/>
+        <text x="380" y="196" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">FastAPI Backend</text>
+        <text x="380" y="214" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.45)">Action detection</text>
+        <rect x="318" y="224" width="124" height="22" rx="5" fill="rgba(139,92,246,0.15)" stroke="rgba(139,92,246,0.3)" stroke-width="1"/>
+        <text x="380" y="239" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#a78bfa">→ Cortex Agents API</text>
+        <text x="380" y="270" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">Python · httpx</text>
 
-        <!-- Arrow down: Backend → Tools row -->
-        <line x1="560" y1="210" x2="616" y2="210" stroke="rgba(41,181,232,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <!-- Arrow: FastAPI → Agents API -->
+        <line x1="460" y1="235" x2="528" y2="235" stroke="rgba(139,92,246,0.6)" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+        <text x="494" y="227" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(139,92,246,0.6)">SSE stream</text>
 
-        <!-- Cortex Search box -->
-        <rect x="620" y="70" width="160" height="110" rx="12"
-              fill="rgba(6,167,125,0.08)" stroke="rgba(6,167,125,0.3)" stroke-width="1.5"/>
-        <text x="700" y="103" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">Cortex Search</text>
-        <text x="700" y="122" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">Hybrid retrieval</text>
-        <text x="700" y="139" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">Policy documents</text>
-        <rect x="640" y="150" width="120" height="20" rx="4" fill="rgba(6,167,125,0.15)"/>
-        <text x="700" y="164" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#06A77D">SEARCH_PREVIEW()</text>
+        <!-- Cortex AI Agents API (central box inside Snowflake) -->
+        <rect x="530" y="140" width="190" height="190" rx="12" fill="rgba(139,92,246,0.08)" stroke="rgba(139,92,246,0.35)" stroke-width="2"/>
+        <text x="625" y="170" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">Cortex AI Agents</text>
+        <rect x="550" y="178" width="150" height="18" rx="4" fill="rgba(139,92,246,0.15)"/>
+        <text x="625" y="191" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#a78bfa">/api/v2/cortex/agent:run</text>
+        <text x="625" y="215" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">Autonomously selects tools</text>
+        <text x="625" y="232" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">No manual routing needed</text>
+        <!-- Tool labels inside agents box -->
+        <rect x="548" y="248" width="74" height="18" rx="4" fill="rgba(6,167,125,0.15)"/>
+        <text x="585" y="261" font-family="JetBrains Mono,monospace" font-size="8" text-anchor="middle" fill="#06A77D">policy_search</text>
+        <rect x="628" y="248" width="74" height="18" rx="4" fill="rgba(41,181,232,0.15)"/>
+        <text x="665" y="261" font-family="JetBrains Mono,monospace" font-size="8" text-anchor="middle" fill="#29B5E8">hr_analyst</text>
+        <text x="625" y="295" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">JWT · Bearer token</text>
+        <text x="625" y="312" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">model: claude-sonnet-4</text>
 
-        <!-- Cortex Analyst box -->
-        <rect x="620" y="210" width="160" height="110" rx="12"
-              fill="rgba(41,181,232,0.08)" stroke="rgba(41,181,232,0.3)" stroke-width="1.5"/>
-        <text x="700" y="243" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">Cortex Analyst</text>
-        <text x="700" y="262" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">NL → SQL</text>
-        <text x="700" y="279" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">Semantic model</text>
-        <rect x="640" y="290" width="120" height="20" rx="4" fill="rgba(41,181,232,0.15)"/>
-        <text x="700" y="304" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#29B5E8">REST API · JWT</text>
+        <!-- Arrow: Agents → Cortex Search -->
+        <path d="M 720 185 Q 760 175 800 155" fill="none" stroke="rgba(6,167,125,0.4)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="4,3"/>
+        <!-- Arrow: Agents → Cortex Analyst -->
+        <path d="M 720 265 Q 760 275 800 290" fill="none" stroke="rgba(41,181,232,0.4)" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="4,3"/>
 
-        <!-- Cortex COMPLETE box -->
-        <rect x="620" y="350" width="160" height="30" rx="8"
-              fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.25)" stroke-width="1"/>
-        <text x="700" y="370" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" fill="#a78bfa">CORTEX.COMPLETE()</text>
+        <!-- Cortex Search -->
+        <rect x="800" y="80" width="150" height="110" rx="12" fill="rgba(6,167,125,0.08)" stroke="rgba(6,167,125,0.3)" stroke-width="1.5"/>
+        <text x="875" y="112" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">Cortex Search</text>
+        <text x="875" y="130" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">Hybrid retrieval</text>
+        <text x="875" y="146" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">12 policy docs</text>
+        <rect x="820" y="158" width="110" height="18" rx="4" fill="rgba(6,167,125,0.15)"/>
+        <text x="875" y="171" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#06A77D">SEARCH_PREVIEW()</text>
 
-        <!-- Lines from Backend to tool boxes -->
-        <path d="M 620 125 Q 600 125 590 160 Q 580 200 560 210" fill="none" stroke="rgba(6,167,125,0.35)" stroke-width="1.5" stroke-dasharray="4,3"/>
-        <path d="M 620 265 L 560 265 L 560 210" fill="none" stroke="rgba(41,181,232,0.35)" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <!-- Cortex Analyst -->
+        <rect x="800" y="250" width="150" height="110" rx="12" fill="rgba(41,181,232,0.08)" stroke="rgba(41,181,232,0.3)" stroke-width="1.5"/>
+        <text x="875" y="282" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">Cortex Analyst</text>
+        <text x="875" y="300" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.5)">NL → SQL</text>
+        <text x="875" y="316" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.4)">Semantic model YAML</text>
+        <rect x="820" y="328" width="110" height="18" rx="4" fill="rgba(41,181,232,0.15)"/>
+        <text x="875" y="341" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#29B5E8">REST API · JWT</text>
 
-        <!-- Arrow: Tools → Snowflake Data -->
-        <line x1="780" y1="210" x2="856" y2="210" stroke="rgba(41,181,232,0.5)" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <!-- Action handlers (bottom of FastAPI) -->
+        <rect x="310" y="380" width="240" height="52" rx="10" fill="rgba(255,183,3,0.06)" stroke="rgba(255,183,3,0.2)" stroke-width="1"/>
+        <text x="430" y="401" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle" fill="white">Action Handlers</text>
+        <text x="430" y="420" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="#FFB703">IT_TICKETS · LEAVE_REQUESTS · EXPENSE_REPORTS</text>
+        <!-- Arrow: Backend → Actions -->
+        <path d="M 380 285 L 380 379" fill="none" stroke="rgba(255,183,3,0.4)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
 
-        <!-- Snowflake Data box -->
-        <rect x="860" y="130" width="160" height="160" rx="12"
-              fill="rgba(41,181,232,0.06)" stroke="rgba(41,181,232,0.2)" stroke-width="1.5"/>
-        <text x="940" y="160" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle" fill="white">Snowflake Data</text>
-        <text x="940" y="185" font-family="Inter,sans-serif" font-size="10" text-anchor="middle" fill="rgba(255,255,255,0.45)">HR_DATA schema</text>
-        <text x="940" y="205" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(255,255,255,0.3)">EMPLOYEES</text>
-        <text x="940" y="220" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(255,255,255,0.3)">EMPLOYEE_LEAVE</text>
-        <text x="940" y="235" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(255,255,255,0.3)">IT_TICKETS</text>
-        <text x="940" y="250" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(255,255,255,0.3)">ATTRITION_FACT</text>
-        <rect x="880" y="262" width="120" height="18" rx="4" fill="rgba(255,183,3,0.1)" stroke="rgba(255,183,3,0.2)" stroke-width="1"/>
-        <text x="940" y="275" font-family="Inter,sans-serif" font-size="9" text-anchor="middle" fill="#FFB703" font-weight="600">RBAC + Masking</text>
-
-        <!-- Arrow back: Answer -->
-        <path d="M 180 225 Q 264 250 348 265 Q 440 280 450 280" fill="none" stroke="rgba(6,167,125,0.4)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
-        <text x="264" y="270" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" fill="rgba(6,167,125,0.6)">grounded answer</text>
+        <!-- Answer arrow back -->
+        <path d="M 160 245 Q 229 258 298 265 Q 340 270 345 285" fill="none" stroke="rgba(6,167,125,0.4)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+        <text x="229" y="268" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle" fill="rgba(6,167,125,0.6)">grounded answer</text>
       </svg>
     </div>
   </div>
@@ -1051,8 +657,8 @@
 <section class="demo-section" id="demo">
   <div class="container">
     <div class="section-label">Demo scenarios</div>
-    <h2 class="section-title">Real questions,<br/>governed answers</h2>
-    <p class="section-sub">Walk through these four scenarios to show the full capability range in a leadership demo.</p>
+    <h2 class="section-title">Seven scenarios,<br/>real governed answers</h2>
+    <p class="section-sub">Walk through these for a leadership demo. The app runs in demo mode (no backend needed) — or connect the backend for live Snowflake queries.</p>
 
     <div class="demo-grid">
       <div class="demo-scenarios">
@@ -1060,37 +666,61 @@
           <div class="demo-scenario-icon">🏖</div>
           <div>
             <div class="demo-scenario-title">"How many leave days do I have left this year?"</div>
-            <div class="demo-scenario-desc">Returns personalised leave balance filtered by EMP_ID. Shows the generated SQL, result rows, and carry-forward status.</div>
-            <span class="demo-tool">Cortex Analyst → SQL</span>
+            <div class="demo-scenario-desc">Personalised leave balance filtered by EMP_ID — Annual, Sick, Bereavement, with carry-forward status. Shows generated SQL and row count.</div>
+            <span class="demo-tool tool-blue">Cortex Analyst → EMPLOYEE_LEAVE</span>
           </div>
         </div>
         <div class="demo-scenario">
-          <div class="demo-scenario-icon">🌍</div>
+          <div class="demo-scenario-icon">📝</div>
           <div>
-            <div class="demo-scenario-title">"What's the policy on working from another country?"</div>
-            <div class="demo-scenario-desc">Retrieves the relevant paragraphs from Global Mobility Policy v4.2 with section citations. Hybrid search finds it even with paraphrased questions.</div>
-            <span class="demo-tool">Cortex Search → Policy docs</span>
+            <div class="demo-scenario-title">"What's the status of my H1 FY26 performance review?"</div>
+            <div class="demo-scenario-desc">Returns current review stage (Manager Review), self-rating submitted, and last Annual FY25 result — all in one query from PERFORMANCE_REVIEWS.</div>
+            <span class="demo-tool tool-blue">Cortex Analyst → PERFORMANCE_REVIEWS</span>
           </div>
         </div>
         <div class="demo-scenario">
           <div class="demo-scenario-icon">🔧</div>
           <div>
-            <div class="demo-scenario-title">"My VPN keeps disconnecting every 10 minutes."</div>
-            <div class="demo-scenario-desc">Finds the known AnyConnect 5.1.4 fix from IT policy, lists the employee's open tickets, and shows resolution time benchmarks.</div>
-            <span class="demo-tool">Cortex Search + Cortex Analyst</span>
+            <div class="demo-scenario-title">"My VPN keeps disconnecting. Please raise a ticket."</div>
+            <div class="demo-scenario-desc">LLM extracts category (Network/VPN), priority (P3), and summary — then INSERTs into IT_TICKETS live. Returns confirmed ticket ID.</div>
+            <span class="demo-tool tool-amber">Action → IT_TICKETS (INSERT)</span>
+          </div>
+        </div>
+        <div class="demo-scenario">
+          <div class="demo-scenario-icon">🎓</div>
+          <div>
+            <div class="demo-scenario-title">"How much of my L&amp;D budget have I used?"</div>
+            <div class="demo-scenario-desc">Joins LEARNING_BUDGET and LEARNING_DEVELOPMENT — shows $3,000 annual, $974 used, $1,799 committed (AWS re:Invent), $227 remaining with a warning.</div>
+            <span class="demo-tool tool-blue">Cortex Analyst → LEARNING_BUDGET</span>
+          </div>
+        </div>
+        <div class="demo-scenario">
+          <div class="demo-scenario-icon">💼</div>
+          <div>
+            <div class="demo-scenario-title">"What benefits am I currently enrolled in?"</div>
+            <div class="demo-scenario-desc">Queries BENEFITS_ENROLLMENT for health plan, dental, 401k, and vision — supplemented by Benefits Guide policy via Cortex Search.</div>
+            <span class="demo-tool tool-green">Cortex Search + Analyst</span>
           </div>
         </div>
         <div class="demo-scenario">
           <div class="demo-scenario-icon">📊</div>
           <div>
             <div class="demo-scenario-title">"Show me attrition trends for my team this year."</div>
-            <div class="demo-scenario-desc">Manager-filtered query across ATTRITION_FACT, returning quarterly rates vs org average with exit reason breakdowns in a formatted table.</div>
-            <span class="demo-tool">Cortex Analyst → Aggregations</span>
+            <div class="demo-scenario-desc">Manager-filtered query across ATTRITION_FACT returning quarterly rates vs org average, with voluntary vs involuntary breakdown.</div>
+            <span class="demo-tool tool-blue">Cortex Analyst → ATTRITION_FACT</span>
+          </div>
+        </div>
+        <div class="demo-scenario featured">
+          <div class="demo-scenario-icon">🌍</div>
+          <div>
+            <div class="demo-scenario-title">"Book travel to New York, May 14–17, Q2 Engineering Summit."</div>
+            <div class="demo-scenario-desc">Triggers 5 parallel agents (Calendar, Budget, Flight, Hotel, Approval) via asyncio.gather(). Each card animates idle → working → done as agents resolve — all within ~6 seconds. Booking Summary appears with $909 total.</div>
+            <span class="demo-tool tool-purple">5 Agents · Parallel · WebSocket · asyncio.gather()</span>
           </div>
         </div>
       </div>
 
-      <!-- Second chat mockup -->
+      <!-- Demo chat mockup (attrition + travel) -->
       <div class="chat-window" style="font-size:0.9em;">
         <div class="chat-titlebar">
           <div class="chrome-dot" style="background:#FF5F57;"></div>
@@ -1102,36 +732,61 @@
           <div class="chat-avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/></svg></div>
           <div class="chat-header-info">
             <div class="chat-header-name">Ask EX</div>
-            <div class="chat-status"><div class="status-dot"></div><span class="status-text">Connected · Snowflake Intelligence</span></div>
+            <div class="chat-status"><div class="status-dot"></div><span class="status-text">Connected · Cortex AI Agents API</span></div>
           </div>
         </div>
         <div class="chat-messages">
           <div class="msg-user">
-            <div class="msg-user-bubble">Show me attrition for my team this year</div>
+            <div class="msg-user-bubble">Book travel to New York May 14–17 for Q2 Engineering Summit</div>
           </div>
           <div class="msg-bot">
-            <div class="msg-bot-avatar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/></svg></div>
-            <div class="msg-bot-content">
-              <div class="msg-text">Here's Engineering — Platform attrition (FY26):<br/><br/>
-                <div style="border:1px solid rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; font-size:10px;">
-                  <div style="background:rgba(41,181,232,0.08); display:grid; grid-template-columns:1fr 1fr 1fr 1fr; padding:6px 10px;">
-                    <span style="color:#29B5E8; font-weight:700;">Quarter</span>
-                    <span style="color:#29B5E8; font-weight:700;">HC</span>
-                    <span style="color:#29B5E8; font-weight:700;">Exits</span>
-                    <span style="color:#29B5E8; font-weight:700;">Rate</span>
+            <div class="msg-bot-avatar"><span style="font-size:13px;">🌍</span></div>
+            <div class="msg-bot-content" style="background:rgba(139,92,246,0.05); border-color:rgba(139,92,246,0.15);">
+              <div style="font-size:11px; font-weight:700; color:#fff; margin-bottom:8px;">Travel Automation — New York, NY</div>
+              <div style="font-size:10px; color:rgba(255,255,255,0.45); margin-bottom:10px; font-family:'JetBrains Mono',monospace;">5 agents · asyncio.gather() · parallel</div>
+              <!-- Agent cards -->
+              <div style="display:flex; flex-direction:column; gap:5px;">
+                <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(6,167,125,0.06); border:1px solid rgba(6,167,125,0.2); border-radius:8px; font-size:10px;">
+                  <span>📅</span><div style="flex:1; color:#06A77D;">No conflicts · Blocked May 14–17</div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(6,167,125,0.06); border:1px solid rgba(6,167,125,0.2); border-radius:8px; font-size:10px;">
+                  <span>💰</span><div style="flex:1; color:#06A77D;">Budget OK · $847 YTD of $2,500</div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(6,167,125,0.06); border:1px solid rgba(6,167,125,0.2); border-radius:8px; font-size:10px;">
+                  <span>✈️</span><div style="flex:1; color:#06A77D;">Delta DL 412 · SFO→JFK · $342 · Confirmed</div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(6,167,125,0.06); border:1px solid rgba(6,167,125,0.2); border-radius:8px; font-size:10px;">
+                  <span>🏨</span><div style="flex:1; color:#06A77D;">Marriott Times Sq · $189/nt · 3 nights · $567</div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#06A77D" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding:7px 10px; background:rgba(255,183,3,0.05); border:1px solid rgba(255,183,3,0.2); border-radius:8px; font-size:10px;">
+                  <span>✅</span><div style="flex:1; color:#FFB703;">Sent to Alex Chen · Est. ~2 hrs</div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFB703" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+              </div>
+              <!-- Summary -->
+              <div style="margin-top:10px; padding:8px 10px; background:rgba(0,0,0,0.2); border-radius:8px; font-size:10px;">
+                <div style="color:rgba(255,255,255,0.4); margin-bottom:6px; letter-spacing:1px; text-transform:uppercase; font-weight:700;">Booking Summary</div>
+                <div style="display:flex; gap:6px;">
+                  <div style="flex:1; padding:6px 8px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.07);">
+                    <div style="font-size:12px; margin-bottom:2px;">✈️</div>
+                    <div style="color:rgba(255,255,255,0.4); font-size:9px;">Flight</div>
+                    <div style="color:#fff; font-weight:700; font-size:13px;">$342</div>
                   </div>
-                  <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; padding:5px 10px; border-top:1px solid rgba(255,255,255,0.05);">
-                    <span style="color:rgba(255,255,255,0.7);">Q1 FY26</span><span style="color:rgba(255,255,255,0.7);">42</span><span style="color:rgba(255,255,255,0.7);">2</span><span style="color:rgba(255,255,255,0.7);">4.8%</span>
+                  <div style="flex:1; padding:6px 8px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.07);">
+                    <div style="font-size:12px; margin-bottom:2px;">🏨</div>
+                    <div style="color:rgba(255,255,255,0.4); font-size:9px;">Hotel</div>
+                    <div style="color:#fff; font-weight:700; font-size:13px;">$567</div>
                   </div>
-                  <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; padding:5px 10px; border-top:1px solid rgba(255,255,255,0.05);">
-                    <span style="color:rgba(255,255,255,0.7);">Q3 FY26</span><span style="color:rgba(255,255,255,0.7);">43</span><span style="color:rgba(255,255,255,0.7);">3</span><span style="color:#FFB703;">7.0%</span>
+                  <div style="flex:1; padding:6px 8px; background:rgba(41,181,232,0.08); border-radius:8px; border:1px solid rgba(41,181,232,0.2);">
+                    <div style="font-size:12px; margin-bottom:2px;">💳</div>
+                    <div style="color:rgba(255,255,255,0.4); font-size:9px;">Total</div>
+                    <div style="color:#29B5E8; font-weight:700; font-size:13px;">$909</div>
                   </div>
                 </div>
-                <br/>Trailing-12m rate <strong>14.1%</strong> vs org avg <strong>11.2%</strong>. Q3 spike correlates with market salary correction.
-              </div>
-              <div class="source-badge">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                Cortex Analyst → ATTRITION_FACT · 4 rows
               </div>
             </div>
           </div>
@@ -1150,7 +805,7 @@
   <div class="container">
     <div class="section-label">Security &amp; Governance</div>
     <h2 class="section-title">Governance that your<br/>CISO will love</h2>
-    <p class="section-sub">Built on Snowflake Horizon — the same access controls that protect your data also protect your AI queries.</p>
+    <p class="section-sub">Built on Snowflake Horizon — the same access controls that protect your data automatically protect every AI query.</p>
 
     <div class="security-grid">
       <div class="security-layers">
@@ -1179,7 +834,7 @@
           <div class="layer-number">4</div>
           <div class="layer-info">
             <div class="layer-title">Data protection</div>
-            <div class="layer-desc">Column masking (salary, email) · Row-access policies</div>
+            <div class="layer-desc">Column masking (salary, email) · Row-access policies on every table</div>
           </div>
         </div>
         <div class="security-layer">
@@ -1193,7 +848,7 @@
           <div class="layer-number">6</div>
           <div class="layer-info">
             <div class="layer-title">Full audit trail</div>
-            <div class="layer-desc">Every prompt, tool call, and retrieved row logged to AUDIT.INTERACTION_LOG</div>
+            <div class="layer-desc">Every prompt, tool call, SQL, and retrieved row logged to AUDIT.INTERACTION_LOG</div>
           </div>
         </div>
       </div>
@@ -1205,7 +860,7 @@
         </div>
         <div class="callout-item">
           <span class="callout-check">✓</span>
-          <span class="callout-text"><strong>No external model API calls.</strong> Cortex runs inference on Snowflake-managed GPUs in your region — your prompt never leaves.</span>
+          <span class="callout-text"><strong>No external model API calls.</strong> Cortex AI Agents, Search, and Analyst all run on Snowflake-managed GPUs in your region — your prompt never leaves.</span>
         </div>
         <div class="callout-item">
           <span class="callout-check">✓</span>
@@ -1217,11 +872,11 @@
         </div>
         <div class="callout-item">
           <span class="callout-check">✓</span>
-          <span class="callout-text"><strong>Row policies filter AI context.</strong> Employees can only retrieve data they're authorised to see. The chatbot cannot bypass row-level restrictions.</span>
+          <span class="callout-text"><strong>Row policies filter AI context.</strong> The Cortex Agents API cannot bypass row-level restrictions — employees only retrieve data they're authorised to see.</span>
         </div>
         <div class="callout-item">
           <span class="callout-check">✓</span>
-          <span class="callout-text"><strong>Every query is auditable.</strong> The interaction log captures the employee, question, tool calls, SQL generated, and latency — for compliance and debugging.</span>
+          <span class="callout-text"><strong>Every agent write is auditable.</strong> Bookings, calendar blocks, and approval requests created by agents are governed Snowflake INSERTs — traceable in INTERACTION_LOG.</span>
         </div>
       </div>
     </div>
@@ -1233,20 +888,24 @@
   <div class="container">
     <div class="section-label">Quick start</div>
     <h2 class="section-title">Up and running<br/>in under 30 minutes</h2>
-    <p class="section-sub">Requires a Snowflake account (trial works), Python 3.10+, and Node.js 18+.</p>
+    <p class="section-sub">Requires a Snowflake account (trial works), Python 3.10+, and Node.js 18+. The frontend runs in demo mode without a backend.</p>
 
     <div class="steps-list">
       <div class="qs-step">
         <div class="qs-number">1</div>
         <div class="qs-content">
-          <div class="qs-title">Run the Snowflake setup scripts in order</div>
+          <div class="qs-title">Run all nine Snowflake setup scripts in order</div>
           <div class="code-block">
 <span class="comment">-- In Snowsight SQL Worksheet, run as ACCOUNTADMIN</span>
-<span class="comment">-- 01_setup_database.sql  → database, roles, warehouses</span>
-<span class="comment">-- 02_create_tables_and_data.sql  → employee data + masking</span>
-<span class="comment">-- 03_cortex_search.sql  → policy search service</span>
+<span class="comment">-- 01_setup_database.sql       → database, roles, warehouses, RBAC</span>
+<span class="comment">-- 02_create_tables_and_data.sql → core employee tables + masking</span>
+<span class="comment">-- 03_cortex_search.sql        → Cortex Search service (wait 2–3 min)</span>
 <span class="comment">-- Upload 04_semantic_model.yaml to @EX_CHATBOT.PUBLIC.SEMANTIC_MODELS</span>
-<span class="comment">-- 05_cortex_agent.sql  → audit log</span>
+<span class="comment">-- 05_cortex_agent.sql         → audit log table</span>
+<span class="comment">-- 06_new_tables.sql           → reviews, L&D, benefits, expenses</span>
+<span class="comment">-- 07_extended_data.sql        → 20+ employees, realistic scenario data</span>
+<span class="comment">-- 08_extended_policies.sql    → 8 additional HR policy documents</span>
+<span class="comment">-- 09_travel_agents.sql        → tables for multi-agent travel demo</span>
           </div>
         </div>
       </div>
@@ -1256,15 +915,15 @@
         <div class="qs-content">
           <div class="qs-title">Generate key pair and configure the backend</div>
           <div class="code-block">
-<span class="comment"># Generate RSA key pair</span>
+<span class="comment"># Generate RSA key pair (required for Cortex AI Agents REST API)</span>
 <span class="cmd">openssl</span> genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out snowflake_private_key.pem
 <span class="cmd">openssl</span> rsa -in snowflake_private_key.pem -pubout -out snowflake_public_key.pem
 
-<span class="comment"># Register public key in Snowsight</span>
+<span class="comment"># Register public key in Snowsight (as ACCOUNTADMIN)</span>
 <span class="comment">-- ALTER USER YOU SET RSA_PUBLIC_KEY='&lt;public-key-body&gt;';</span>
 
 <span class="comment"># Set up environment</span>
-<span class="cmd">cp</span> .env.example .env  <span class="comment"># then edit with your account + key path</span>
+<span class="cmd">cp</span> .env.example .env  <span class="comment"># edit with your account, user, key path</span>
 <span class="cmd">python</span> -m venv .venv &amp;&amp; .venv/Scripts/activate
 <span class="cmd">python</span> -m pip install -r backend/requirements.txt
           </div>
@@ -1276,7 +935,7 @@
         <div class="qs-content">
           <div class="qs-title">Start the backend and frontend</div>
           <div class="code-block">
-<span class="comment"># Terminal 1 — Backend</span>
+<span class="comment"># Terminal 1 — Backend (Cortex AI Agents + WebSocket travel endpoint)</span>
 <span class="cmd">cd</span> backend &amp;&amp; python main.py
 <span class="comment"># → http://localhost:8000/health  {"status":"healthy"}</span>
 
@@ -1285,6 +944,7 @@
 <span class="cmd">echo</span> <span class="str">"REACT_APP_API_URL=http://localhost:8000"</span> &gt; .env.local
 <span class="cmd">npm</span> install &amp;&amp; npm start
 <span class="comment"># → http://localhost:3000</span>
+<span class="comment"># Without .env.local → runs in demo mode (no backend required)</span>
           </div>
         </div>
       </div>
@@ -1297,14 +957,14 @@
   <div class="container">
     <div class="section-label" style="text-align:center;">Open source · MIT License</div>
     <h2 class="section-title">Ready to build your<br/>employee experience AI?</h2>
-    <p class="section-sub">Clone the repo, run five SQL scripts, and you have a working Snowflake-native HR chatbot in under 30 minutes.</p>
+    <p class="section-sub">Clone the repo, run nine SQL scripts, and you have a working Snowflake-native HR chatbot with Cortex AI Agents, multi-agent travel automation, and full governance in under 30 minutes.</p>
     <div class="cta-actions">
       <a class="btn btn-primary" href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/></svg>
         View on GitHub
       </a>
-      <a class="btn btn-outline" href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/blob/main/ARCHITECTURE.md">
-        Architecture deep-dive →
+      <a class="btn btn-outline" href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/blob/main/README.md">
+        Full documentation →
       </a>
     </div>
   </div>
@@ -1320,11 +980,12 @@
         </div>
         <div>
           <div class="footer-name">Ask EX</div>
-          <div class="footer-sub">Employee Experience AI · Snowflake Cortex · MIT License</div>
+          <div class="footer-sub">Employee Experience AI · Snowflake Cortex AI Agents · MIT License</div>
         </div>
       </div>
       <ul class="footer-links">
         <li><a href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot">GitHub</a></li>
+        <li><a href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/blob/main/README.md">README</a></li>
         <li><a href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/blob/main/ARCHITECTURE.md">Architecture</a></li>
         <li><a href="https://github.com/saurabh-oss/snowflake-employee-experience-chatbot/blob/main/LICENSE">License</a></li>
         <li><a href="https://docs.snowflake.com/en/guides-overview-ai-features">Snowflake Cortex Docs</a></li>
